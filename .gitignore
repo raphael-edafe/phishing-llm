@@ -1,0 +1,11 @@
+# Secrets - never commit these
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Data (Enron dataset is large; keep it out of the repo)
+*.csv
