@@ -80,11 +80,19 @@ def report_contradictions(ok: list[dict]) -> None:
         print("  no contradictions - the two fields agree throughout")
 
 
+RESULTS_DIR = Path("results")
+
+
 def load_results(dataset: str, tag: str = "") -> list[dict]:
     suffix = f"_{tag}" if tag else ""
-    path = Path(f"results_{dataset}{suffix}.jsonl")
+    path = RESULTS_DIR / f"results_{dataset}{suffix}.jsonl"
     if not path.exists():
-        raise SystemExit(f"{path} not found - run: python run_batch.py {dataset}")
+        available = sorted(p.name for p in RESULTS_DIR.glob("*.jsonl")) \
+            if RESULTS_DIR.exists() else []
+        raise SystemExit(
+            f"{path} not found - run: python run_batch.py {dataset}"
+            + (f"\navailable: {', '.join(available)}" if available else "")
+        )
     return [json.loads(line) for line in
             path.read_text(encoding="utf-8").splitlines() if line.strip()]
 

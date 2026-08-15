@@ -13,3 +13,6 @@ venv/
 *.csv
 *.zip
 *.eml
+
+# editor / tool config
+.claude/

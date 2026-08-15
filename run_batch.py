@@ -32,6 +32,9 @@ RANDOM_SEED = 42
 MIN_CHARS = 20
 MAX_CHARS = 8000
 
+# scored output lands here, one file per dataset+tag
+RESULTS_DIR = Path("results")
+
 ENRON_CSV = (
     "C:/Users/rapha/Downloads/projects/background for phishing llm"
     "/enron_spam_data/enron_spam_data.csv"
@@ -228,7 +231,8 @@ def main() -> None:
         return
 
     suffix = f"_{args.tag}" if args.tag else ""
-    score_sample(sample, Path(f"results_{args.dataset}{suffix}.jsonl"))
+    RESULTS_DIR.mkdir(exist_ok=True)
+    score_sample(sample, RESULTS_DIR / f"results_{args.dataset}{suffix}.jsonl")
 
 
 if __name__ == "__main__":

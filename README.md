@@ -216,6 +216,18 @@ them separately and place the `.zip` files in the project root.
 
 ## Usage
 
+**Web UI** — paste an email, see the result rendered:
+
+```bash
+python app.py
+```
+
+Then open <http://localhost:5057>. The deterministic domain check and the model's judgement are
+shown as separate sections, because one is a verifiable fact about the text and the other is an
+opinion; presenting them identically would overstate the second.
+
+**Single email, command line:**
+
 ```bash
 python detect_phishing.py
 ```
