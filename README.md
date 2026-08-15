@@ -128,12 +128,11 @@ was only visible because the same input was run repeatedly; a single run looked 
 
 ## Known limitations
 
-**Subtle typosquatting without supporting signals.** The one phishing email that got through
-was a WeTransfer notification from `we-transfer.com` — the real domain is `wetransfer.com`, a
-difference of one hyphen. No urgency, no threat, no credential request. Every email the
-detector caught had several signals stacked; this one had exactly one, and a quiet one. The
-body even cites the genuine domain while arriving from the fake, which is a deliberate
-technique.
+**Subtle typosquatting without supporting signals** — partially mitigated, see below. The one
+phishing email that got through was a WeTransfer notification from `we-transfer.com`; the real
+domain is `wetransfer.com`, a difference of one hyphen. No urgency, no threat, no credential
+request. Every email the detector caught had several signals stacked; this one had exactly
+one, and a quiet one.
 
 **Spam vs legitimate is not determinable from content.** Whether a newsletter is subscribed or
 unsolicited is a fact about the recipient's prior consent, and it does not appear anywhere in
@@ -154,6 +153,47 @@ sender domain in the corpus. Any classifier *trained* on this data can learn "ta
 safe" and post excellent numbers without detecting anything. This tool isn't trained on the
 labels so it can't exploit the leak — but the artifact works against it, manufacturing fake
 domain mismatches on legitimate mail.
+
+## When the prompt is the wrong tool
+
+The typosquat above is the clearest case in this project of a job a language model should not
+be given.
+
+The obvious fix was to ask about it. Two questions were added describing that exact tell — does
+the sender's domain differ slightly from the brand it claims, does the body cite a domain other
+than the sender's. **Recall did not move.** The same email scored 0.05 and `legitimate`, and
+four legitimate rows drifted from `legitimate` to `spam` as a side effect. The questions were
+reverted.
+
+The cause is not that the model can't see it. Asked in isolation:
+
+> *Compare these two domains character by character. A: we-transfer.com B: wetransfer.com*
+>
+> "No, the two domains are not identical. The difference is the presence of a hyphen..."
+
+It knows. It just doesn't run character-level comparison against a brand recalled from memory
+while weighing seven other questions about a full email. Asking more insistently doesn't help,
+because it was never failing to try.
+
+So the check moved to code. [`domain_check.py`](domain_check.py) compares the sender domain
+against the display-name brand and against domains cited in the body, matching only after
+de-obfuscation — hyphens stripped, digit-for-letter substitutions mapped. No API calls, no
+brand list, no network.
+
+A fuzzy edit-distance variant was written first and removed after measurement: short domains
+land within two edits of each other constantly (`best.com`/`xent.com`,
+`cse.ucsc.edu`/`cs.ucsc.edu`), and it fired on **11 of 4,091** legitimate emails — as often as
+on phishing. Restricting it to exact-match-after-de-obfuscation:
+
+```
+SpamAssassin ham     0 / 4091   (0.00%)
+Nazario phishing     1 / 1565   (0.06%)
+```
+
+Zero false positives, and it catches both known cases. But be clear about what that is: a
+**high-precision, very-low-recall complement**, not a detector. Its measured contribution on
+these corpora is one email. The value is the division of labour — exact string comparison in
+code, semantic judgment in the model — not the hit rate.
 
 ## Setup
 
