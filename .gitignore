@@ -7,5 +7,9 @@ __pycache__/
 .venv/
 venv/
 
-# Data (Enron dataset is large; keep it out of the repo)
+# Data - keep corpora out of the repo. they are large, and the phishing
+# corpora contain live malicious URLs; committing them to a public repo would
+# amount to redistributing working attack infrastructure.
 *.csv
+*.zip
+*.eml

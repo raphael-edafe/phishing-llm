@@ -1,4 +1,5 @@
 import os
+from typing import Literal
 
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field 
@@ -29,9 +30,32 @@ client = OpenAI(api_key=OPENAI_API_KEY)
 # pydantic converts these annotations into a JSON schema that goes out with
 # the request, and the API is then constrained to produce matching JSON.
 class PhishingAnalysis(BaseModel):
+    # spam and phishing are separate axes, not points on one scale: an advert
+    # is unwanted but honest, a spear-phish is deceptive but not bulk at all.
+    # a single risk_score kept conflating them, so the kind of email is now its
+    # own field. Literal compiles to a JSON schema ENUM, so the API is
+    # constrained to exactly these three strings - no free-text drift.
+    category: Literal["legitimate", "spam", "phishing"] = Field(
+        description="legitimate = mail the recipient wants, INCLUDING bulk "
+                    "mail they signed up for: mailing list posts, forum and "
+                    "discussion threads, subscribed newsletters, RSS digests, "
+                    "automated notifications. Being sent to many people does "
+                    "not make mail spam if the recipient asked for it. "
+                    "spam = bulk mail the recipient did NOT ask for - "
+                    "advertising, promotions, mass mailings - with no attempt "
+                    "to deceive or steal. "
+                    "phishing = an attempt to steal credentials, money, or "
+                    "data through deception or impersonation. An unwanted "
+                    "advert is spam, not phishing, however annoying it is."
+    )
     risk_score: float = Field(
-        description="The risk score of the email, ranging from 0.0 to 1.0, "
-                    "0 being lowest risk, 1 being highest risk"
+        description="How dangerous this email is as a PHISHING attempt "
+                    "specifically, from 0.00 (certainly harmless) to 1.00 "
+                    "(certainly phishing). Unsolicited advertising is not "
+                    "dangerous in this sense and should score low even though "
+                    "it is unwanted. Give it to two decimal places, and use "
+                    "the full range - 0.15 and 0.35 are meaningfully different "
+                    "judgements, so do not round to the nearest 0.1."
     )
     flags: list[str] = Field(
         description="Specific phishing indicators found in this email. Each "
@@ -52,7 +76,14 @@ class PhishingAnalysis(BaseModel):
 
 # the prompt sent to the model
 SYSTEM_PROMPT = """Analyze this email for phishing/scam red flags.
-Give a risk score from 0.0 to 1.0 and list the specific indicators.
+
+Classify it as legitimate, spam, or phishing, then give a phishing risk score
+from 0.00 to 1.00 to two decimal places, and list the specific indicators.
+
+Keep those two judgements separate. Spam and phishing are different things:
+unsolicited bulk advertising is spam and scores LOW on phishing risk, however
+annoying it is. Phishing means deception aimed at stealing credentials, money,
+or data - and it need not be bulk at all.
 
 Check the email against these questions, and report only what you observe:
 - Does the sender address or domain differ from the brand it claims to be?
