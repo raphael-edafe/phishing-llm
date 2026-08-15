@@ -4,108 +4,266 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Phishing Detector</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --bg: #f6f7f9;
-    --panel: #ffffff;
-    --ink: #16191d;
-    --muted: #6b7280;
-    --line: #e3e6ea;
-    --accent: #2563eb;
-    --safe: #15803d;
-    --safe-bg: #dcfce7;
-    --warn: #b45309;
-    --warn-bg: #fef3c7;
-    --danger: #b91c1c;
-    --danger-bg: #fee2e2;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #0f1115; --panel: #171a20; --ink: #e8eaed; --muted: #9aa1ab;
-      --line: #272b33; --accent: #60a5fa;
-      --safe: #4ade80; --safe-bg: #0f2f1c;
-      --warn: #fbbf24; --warn-bg: #33280a;
-      --danger: #f87171; --danger-bg: #3a1414;
-    }
-  }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0; padding: 2rem 1rem 4rem;
-    background: var(--bg); color: var(--ink);
-    font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  }
-  .wrap { max-width: 780px; margin: 0 auto; }
-  h1 { font-size: 1.35rem; margin: 0 0 .25rem; letter-spacing: -.01em; }
-  .sub { color: var(--muted); margin: 0 0 1.5rem; font-size: .9rem; }
-  .panel {
-    background: var(--panel); border: 1px solid var(--line);
-    border-radius: 10px; padding: 1.1rem;
-  }
-  textarea {
-    width: 100%; min-height: 230px; resize: vertical;
-    background: transparent; color: var(--ink);
-    border: 1px solid var(--line); border-radius: 8px; padding: .75rem;
-    font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  }
-  textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
-  .row { display: flex; gap: .6rem; align-items: center; margin-top: .75rem; flex-wrap: wrap; }
-  button {
-    font: inherit; font-weight: 600; cursor: pointer;
-    background: var(--accent); color: #fff; border: 0;
-    border-radius: 8px; padding: .6rem 1.1rem;
-  }
-  button:disabled { opacity: .55; cursor: default; }
-  button.ghost {
-    background: transparent; color: var(--muted);
-    border: 1px solid var(--line); font-weight: 500;
-  }
-  .hint { color: var(--muted); font-size: .82rem; }
-  #out { margin-top: 1.25rem; }
-  .hidden { display: none; }
+:root {
+  /* Colors */
+  --color-obsidian: #08080a;
+  --color-onyx: #040406;
+  --color-carbon: #121317;
+  --color-graphite: #1c1d22;
+  --color-slate: #2e3038;
+  --color-smoke: #464853;
+  --color-ash: #5e616e;
+  --color-steel: #777a88;
+  --color-fog: #9194a1;
+  --color-mist: #acafb9;
+  --color-silver: #c7c9d1;
+  --color-bone: #e2e3e9;
+  --color-paper-white: #ffffff;
+  --color-copper: #cc9166;
 
-  .verdictbar { display: flex; align-items: center; gap: .8rem; flex-wrap: wrap; }
-  .badge {
-    font-weight: 700; font-size: .78rem; letter-spacing: .06em;
-    text-transform: uppercase; padding: .3rem .65rem; border-radius: 999px;
-  }
-  .badge.legitimate { background: var(--safe-bg); color: var(--safe); }
-  .badge.spam       { background: var(--warn-bg); color: var(--warn); }
-  .badge.phishing   { background: var(--danger-bg); color: var(--danger); }
+  /* Ivy Presto is licensed; Playfair Display is the documented substitute */
+  --font-ivy-presto: 'Playfair Display', 'Ivy Presto', Georgia, serif;
+  --font-inter: 'Inter', ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
 
-  .score { font-variant-numeric: tabular-nums; font-weight: 700; font-size: 1.5rem; }
-  .meter { height: 7px; border-radius: 99px; background: var(--line); overflow: hidden; flex: 1 1 160px; min-width: 120px; }
-  .meter > i { display: block; height: 100%; border-radius: 99px; transition: width .35s ease; }
+  --text-eyebrow: 13px;
+  --text-body-xs: 16px;
+  --text-body-sm: 18px;
+  --text-heading: 52px;
+  --tracking-heading: 0.52px;
 
-  .verdict { margin: .9rem 0 0; }
-  h2 { font-size: .8rem; text-transform: uppercase; letter-spacing: .07em;
-       color: var(--muted); margin: 1.4rem 0 .5rem; }
-  ul { margin: 0; padding-left: 1.1rem; }
-  li { margin: .3rem 0; }
-  .det { border-left: 3px solid var(--accent); padding: .55rem .8rem;
-         background: color-mix(in srgb, var(--accent) 8%, transparent);
-         border-radius: 0 6px 6px 0; }
-  .det code { font-size: .85em; }
-  .err { border-left: 3px solid var(--danger); padding: .6rem .8rem;
-         background: var(--danger-bg); color: var(--danger); border-radius: 0 6px 6px 0; }
-  .spin { display: inline-block; width: 13px; height: 13px; vertical-align: -2px;
-          border: 2px solid currentColor; border-right-color: transparent;
-          border-radius: 50%; animation: sp .7s linear infinite; margin-right: .4rem; }
-  @keyframes sp { to { transform: rotate(360deg); } }
+  --spacing-6: 6px;   --spacing-8: 8px;   --spacing-10: 10px;
+  --spacing-12: 12px; --spacing-16: 16px; --spacing-20: 20px;
+  --spacing-24: 24px; --spacing-32: 32px; --spacing-40: 40px;
+
+  --radius-sm: 2px; --radius-lg: 10px; --radius-full: 9999px;
+
+  --surface-void: #08080a;
+  --surface-card: #040406;
+  --surface-panel: #121317;
+  --surface-floating: #1c1d22;
+
+  /* Status tones. The system reserves Copper as its only brand accent, but it
+     also defines a Status Badge with "a desaturated sage that reads on dark
+     without vibrating" - status is an established functional exception, not a
+     second accent. These follow that badge pattern: desaturated, low-chroma,
+     carried on a 1px border rather than a fill. Copper serves as the middle
+     state, where a warm caution note is exactly what it already means. */
+  --tone-legitimate: #7f9e7c;
+  --tone-spam: #cc9166;
+  --tone-phishing: #c2635e;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: var(--spacing-40) var(--spacing-24) 120px;
+  background: var(--surface-void);
+  color: var(--color-bone);
+  font-family: var(--font-inter);
+  font-size: var(--text-body-xs);
+  font-weight: 400;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* the system's 1216px page width is for multi-column marketing layouts; a
+   single-column reading measure is held narrower so lines stay legible */
+.wrap { max-width: 840px; margin: 0 auto; }
+
+.eyebrow {
+  font-size: var(--text-eyebrow); font-weight: 600; line-height: 1;
+  letter-spacing: -0.26px; color: var(--color-copper);
+  text-transform: uppercase; margin: 0 0 var(--spacing-16);
+}
+
+h1 {
+  font-family: var(--font-ivy-presto);
+  font-size: var(--text-heading); font-weight: 400; line-height: 1.13;
+  letter-spacing: var(--tracking-heading);
+  color: var(--color-paper-white);
+  margin: 0 0 var(--spacing-12);
+}
+
+.lede {
+  color: var(--color-fog); margin: 0 0 var(--spacing-40);
+  max-width: 56ch;
+}
+
+.card {
+  background: var(--surface-card);
+  border: 1px solid var(--color-graphite);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-24);
+}
+
+/* textarea keeps the 10px card radius rather than the 9999px input radius -
+   a pill only reads correctly on a single-line control */
+textarea {
+  width: 100%; min-height: 240px; resize: vertical; display: block;
+  background: var(--surface-panel);
+  color: var(--color-bone);
+  border: 1px solid var(--color-graphite);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-16);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px; line-height: 1.55;
+}
+textarea::placeholder { color: var(--color-steel); }
+textarea:focus { outline: none; border-color: var(--color-smoke); }
+
+.controls {
+  display: flex; align-items: center; gap: var(--spacing-8);
+  margin-top: var(--spacing-16); flex-wrap: wrap;
+}
+
+/* the single white filled pill on the page - the system calls this a scarce
+   resource, so nothing else competes for it */
+.btn-primary {
+  font-family: var(--font-inter); font-size: 14px; font-weight: 500;
+  line-height: 1; cursor: pointer;
+  background: var(--color-paper-white); color: #000000;
+  border: 0; border-radius: var(--radius-full);
+  padding: var(--spacing-10) var(--spacing-20);
+}
+.btn-primary:disabled { opacity: .45; cursor: default; }
+
+/* Pill Tag Button - cool grey border, deliberately reading as secondary */
+.btn-tag {
+  font-family: var(--font-inter); font-size: 13px; font-weight: 500;
+  line-height: 1; cursor: pointer;
+  background: transparent; color: var(--color-bone);
+  border: 1px solid var(--color-steel);
+  border-radius: var(--radius-full);
+  padding: var(--spacing-6) var(--spacing-10);
+}
+.btn-tag:hover { border-color: var(--color-fog); }
+
+.status { font-size: 13px; color: var(--color-ash); margin-left: var(--spacing-4); }
+
+#out { margin-top: var(--spacing-24); }
+
+/* ---- result ---- */
+.result-head {
+  display: flex; align-items: center; gap: var(--spacing-16);
+  flex-wrap: wrap;
+}
+
+/* Status Badge: transparent fill, 1px toned border, 12px Inter 500 */
+.badge {
+  font-size: 12px; font-weight: 500; line-height: 1;
+  letter-spacing: 0.04em; text-transform: uppercase;
+  padding: var(--spacing-6) var(--spacing-12);
+  border-radius: var(--radius-full);
+  border: 1px solid currentColor; background: transparent;
+}
+.badge.legitimate { color: var(--tone-legitimate); }
+.badge.spam       { color: var(--tone-spam); }
+.badge.phishing   { color: var(--tone-phishing); }
+
+/* Stat Display: the numeral in Ivy Presto is the system's device for giving
+   a figure editorial weight */
+.score {
+  font-family: var(--font-ivy-presto);
+  font-size: 44px; font-weight: 400; line-height: 1;
+  letter-spacing: 0.44px; font-variant-numeric: tabular-nums;
+  margin-left: auto;
+}
+.score-label {
+  font-size: 13px; font-weight: 400; color: var(--color-fog);
+  line-height: 1; margin-top: var(--spacing-6); text-align: right;
+}
+.score-wrap { margin-left: auto; }
+
+.meter {
+  height: 3px; background: var(--color-graphite);
+  border-radius: var(--radius-full); overflow: hidden;
+  margin: var(--spacing-20) 0 0;
+}
+.meter > i {
+  display: block; height: 100%; border-radius: var(--radius-full);
+  transition: width .4s cubic-bezier(.4,0,.2,1);
+}
+
+.verdict {
+  font-size: var(--text-body-sm); line-height: 1.38; letter-spacing: -0.36px;
+  color: var(--color-bone); margin: var(--spacing-24) 0 0;
+}
+
+h2 {
+  font-family: var(--font-inter);
+  font-size: var(--text-eyebrow); font-weight: 600; line-height: 1;
+  letter-spacing: -0.26px; text-transform: uppercase;
+  color: var(--color-copper);
+  margin: var(--spacing-32) 0 var(--spacing-12);
+}
+h2 .qual { color: var(--color-ash); font-weight: 500; text-transform: none;
+           letter-spacing: -0.13px; }
+
+/* Data Table Row: hairline dividers, dense, no container */
+.rows { list-style: none; margin: 0; padding: 0; }
+.rows li {
+  padding: var(--spacing-10) 0;
+  border-bottom: 1px solid var(--color-graphite);
+  font-size: 15px; color: var(--color-bone);
+}
+.rows li:last-child { border-bottom: 0; }
+
+/* the deterministic layer is separated by SURFACE, not by colour - the system
+   builds hierarchy from surface steps and hairlines rather than hue */
+.verified {
+  background: var(--surface-panel);
+  border: 1px solid var(--color-graphite);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-16) var(--spacing-20);
+}
+.verified .rows li { border-bottom-color: var(--color-slate); font-size: 14px; }
+.verified code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: .92em; color: var(--color-silver);
+}
+
+.empty { color: var(--color-ash); font-size: 15px; margin: 0; }
+
+.error {
+  border: 1px solid var(--tone-phishing);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-16) var(--spacing-20);
+  color: var(--tone-phishing); font-size: 15px;
+}
+
+.spin {
+  display: inline-block; width: 11px; height: 11px; vertical-align: -1px;
+  border: 1.5px solid var(--color-steel); border-right-color: transparent;
+  border-radius: 50%; animation: sp .7s linear infinite;
+  margin-right: var(--spacing-8);
+}
+@keyframes sp { to { transform: rotate(360deg); } }
+
+@media (max-width: 600px) {
+  h1 { font-size: 36px; }
+  .score { font-size: 32px; }
+}
 </style>
 </head>
 <body>
 <div class="wrap">
+  <p class="eyebrow">Email security</p>
   <h1>Phishing Detector</h1>
-  <p class="sub">Paste an email — headers included if you have them — and it will be checked for
-     phishing indicators.</p>
+  <p class="lede">Paste an email — with headers, if you have them — to check it for phishing
+    indicators. Sender domains are compared deterministically before the message is read.</p>
 
-  <div class="panel">
+  <div class="card">
     <textarea id="email" spellcheck="false"
       placeholder="From: PayPal Security &lt;service@paypa1-secure.com&gt;&#10;Subject: URGENT: Your account has been limited&#10;&#10;Dear Valued Customer, ..."></textarea>
-    <div class="row">
-      <button id="go">Analyse</button>
-      <button id="sample" class="ghost" type="button">Load sample</button>
-      <span class="hint" id="hint">Takes about 7 seconds.</span>
+    <div class="controls">
+      <button id="go" class="btn-primary">Analyse</button>
+      <button id="sample" class="btn-tag" type="button">Load sample</button>
+      <span class="status" id="status">About 7 seconds.</span>
     </div>
   </div>
 
@@ -138,70 +296,76 @@ PayPal Security Team`;
 
 $('#sample').onclick = () => { $('#email').value = SAMPLE; $('#email').focus(); };
 
-// colour the meter by danger, not by category - a 'spam' verdict at 0.05 and
-// a 'phishing' verdict at 0.95 should not share a colour
-const tone = s => s >= 0.5 ? 'danger' : s >= 0.2 ? 'warn' : 'safe';
+// the meter is coloured by danger, not by category: 'spam' at 0.05 and
+// 'phishing' at 0.95 must not read as the same severity
+const tone = s => s >= 0.5 ? 'phishing' : s >= 0.2 ? 'spam' : 'legitimate';
 
 function render(d) {
   const out = $('#out'); out.replaceChildren();
-  const panel = el('div', 'panel');
+  const card = el('div', 'card');
 
-  const bar = el('div', 'verdictbar');
-  bar.append(el('span', 'badge ' + d.category, d.category));
-  const score = el('span', 'score', d.risk_score.toFixed(2));
-  score.style.color = `var(--${tone(d.risk_score)})`;
-  bar.append(score);
+  const head = el('div', 'result-head');
+  head.append(el('span', 'badge ' + d.category, d.category));
+
+  const wrap = el('div', 'score-wrap');
+  const score = el('div', 'score', d.risk_score.toFixed(2));
+  score.style.color = `var(--tone-${tone(d.risk_score)})`;
+  wrap.append(score, el('div', 'score-label', 'phishing risk'));
+  head.append(wrap);
+  card.append(head);
+
   const meter = el('div', 'meter'), fill = el('i');
-  fill.style.width = Math.max(2, d.risk_score * 100) + '%';
-  fill.style.background = `var(--${tone(d.risk_score)})`;
-  meter.append(fill); bar.append(meter);
-  panel.append(bar);
+  fill.style.width = Math.max(1.5, d.risk_score * 100) + '%';
+  fill.style.background = `var(--tone-${tone(d.risk_score)})`;
+  meter.append(fill); card.append(meter);
 
-  panel.append(el('p', 'verdict', d.verdict));
+  card.append(el('p', 'verdict', d.verdict));
 
-  // the deterministic layer is shown apart from the model's judgement on
-  // purpose: this one is a verifiable fact about the text, not an opinion
+  // shown above the model's own findings, and on a raised surface, because
+  // this half is a verifiable fact about the text rather than a judgement
   if (d.domain_findings?.length) {
-    panel.append(el('h2', null, 'Domain check — verified, not inferred'));
-    const box = el('div', 'det');
-    const ul = el('ul');
+    const h = el('h2', null, 'Domain check');
+    h.append(el('span', 'qual', '  verified, not inferred'));
+    card.append(h);
+    const box = el('div', 'verified');
+    const ul = el('ul', 'rows');
     d.domain_findings.forEach(f => ul.append(el('li', null, f)));
-    box.append(ul); panel.append(box);
+    box.append(ul); card.append(box);
   }
 
-  panel.append(el('h2', null, d.flags.length ? 'Indicators' : 'Indicators — none found'));
+  card.append(el('h2', null, 'Indicators'));
   if (d.flags.length) {
-    const ul = el('ul');
+    const ul = el('ul', 'rows');
     d.flags.forEach(f => ul.append(el('li', null, f)));
-    panel.append(ul);
+    card.append(ul);
   } else {
-    panel.append(el('p', 'hint', 'The model reported no phishing indicators in this email.'));
+    card.append(el('p', 'empty', 'No phishing indicators reported.'));
   }
 
-  out.append(panel);
+  out.append(card);
 }
 
 function showError(msg, findings) {
   const out = $('#out'); out.replaceChildren();
-  const panel = el('div', 'panel');
-  panel.append(el('div', 'err', msg));
+  const card = el('div', 'card');
+  card.append(el('div', 'error', msg));
   if (findings?.length) {
-    panel.append(el('h2', null, 'Domain check still ran'));
-    const ul = el('ul');
+    card.append(el('h2', null, 'Domain check still ran'));
+    const ul = el('ul', 'rows');
     findings.forEach(f => ul.append(el('li', null, f)));
-    panel.append(ul);
+    card.append(ul);
   }
-  out.append(panel);
+  out.append(card);
 }
 
 $('#go').onclick = async () => {
   const email = $('#email').value.trim();
   if (!email) { showError('Paste an email first.'); return; }
 
-  // 7 seconds of silence reads as a hang - say something immediately
-  const btn = $('#go'); btn.disabled = true;
-  const hint = $('#hint'); hint.replaceChildren(el('span', 'spin'),
-                                                document.createTextNode('Analysing…'));
+  // seven seconds of silence reads as a hang - say something immediately
+  const btn = $('#go'), status = $('#status');
+  btn.disabled = true;
+  status.replaceChildren(el('span', 'spin'), document.createTextNode('Analysing…'));
   $('#out').replaceChildren();
 
   try {
@@ -217,7 +381,7 @@ $('#go').onclick = async () => {
     showError('Could not reach the server. Is app.py running?');
   } finally {
     btn.disabled = false;
-    hint.textContent = 'Takes about 7 seconds.';
+    status.textContent = 'About 7 seconds.';
   }
 };
 </script>
