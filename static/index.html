@@ -66,8 +66,11 @@ body {
   overflow: hidden; pointer-events: none; user-select: none;
   color: #131b1e; font-size: 13px; line-height: 1.55;
   white-space: pre-wrap; word-break: break-all;
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 22%, #000 100%);
-          mask-image: linear-gradient(to bottom, transparent 0%, #000 22%, #000 100%);
+  /* no mask. an earlier version faded the top 22% to transparent, but the
+     element is fixed, so that was a permanently blank band across the top of
+     the SCREEN at every scroll position - it read as the ocean being cut off.
+     The colour is already close enough to the background to stay out of the
+     way without help. */
 }
 
 /* ---- banner ---- */
@@ -261,19 +264,52 @@ h2 .q { color: var(--dim); letter-spacing: 0; text-transform: none; }
 <script src="/static/vendor/motion.js"></script>
 <script>
 // ---- ocean -----------------------------------------------------------------
-// Wave glyphs generated rather than written out: pre-wrap lets the browser do
-// the wrapping, so it fills any viewport without measuring anything. The
-// pattern is deterministic - a fixed seed, not Math.random - so the water does
-// not reshuffle on every render, which would be distracting.
+// Wave glyphs sized to the viewport. An earlier version used a fixed 9,000
+// characters, which happened to fill a 990px window and ran out on anything
+// larger - the field has to be measured, not guessed. pre-wrap does the
+// wrapping once there are enough characters to wrap.
+//
+// The pattern is deterministic - a fixed seed, not Math.random - so the water
+// does not reshuffle when the window is resized.
 (() => {
   const ocean = document.querySelector('.ocean');
   if (!ocean) return;
-  let seed = 20260819;
-  const rnd = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+
   const glyphs = ['~', '~', '~', '≈', '-', ' ', ' '];
-  let out = '';
-  for (let i = 0; i < 9000; i++) out += glyphs[Math.floor(rnd() * glyphs.length)];
-  ocean.textContent = out;
+
+  function metrics() {
+    const probe = document.createElement('pre');
+    probe.style.cssText = 'position:absolute;visibility:hidden;white-space:pre;margin:0;font:'
+                        + getComputedStyle(ocean).font;
+    probe.textContent = 'X'.repeat(100);
+    document.body.append(probe);
+    // one probe gives both metrics: a single-line <pre> is exactly one
+    // line tall, so no newline is needed to measure line height
+    const rect = probe.getBoundingClientRect();
+    const charW = rect.width / 100;
+    const lineH = rect.height;
+    probe.remove();
+    return { charW: charW || 8, lineH: lineH || 20 };
+  }
+
+  function fill() {
+    const { charW, lineH } = metrics();
+    // +25% margin so a wrap landing awkwardly never leaves the last rows short
+    const cols = Math.ceil(window.innerWidth / charW);
+    const rows = Math.ceil(window.innerHeight / lineH);
+    const need = Math.ceil(cols * rows * 1.25);
+    if (ocean.textContent.length >= need) return;   // already deep enough
+
+    let seed = 20260819;
+    const rnd = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+    let out = '';
+    for (let i = 0; i < need; i++) out += glyphs[Math.floor(rnd() * glyphs.length)];
+    ocean.textContent = out;
+  }
+
+  fill();
+  let t;
+  addEventListener('resize', () => { clearTimeout(t); t = setTimeout(fill, 150); });
 })();
 
 const $ = s => document.querySelector(s);
