@@ -16,3 +16,7 @@ venv/
 
 # editor / tool config
 .claude/
+
+# js deps - the one file we use is vendored into static/vendor/
+node_modules/
+package-lock.json

@@ -216,6 +216,15 @@ Zero false positives, and it catches both known cases. But be clear about what t
 these corpora is one email. The value is the division of labour — exact string comparison in
 code, semantic judgment in the model — not the hit rate.
 
+Hover states are driven by `hover()` from [motion.dev](https://motion.dev) rather than
+`mouseenter`. It is pointer-aware, so a touch tap does not leave a highlight stuck on, and it
+returns a cleanup function so the enter and exit animations are written together instead of as
+two detached handlers. Marks stay `display: inline` so a highlight can span a wrapped line,
+which rules out transforms — a transform has no effect on a non-replaced inline box — so the
+animation is on colour. The bundle is vendored into `static/vendor/` rather than loaded from a
+CDN, both so it works offline and because an extension's CSP would block a remote script. If it
+fails to load, the CSS `:hover` rules still cover the essentials.
+
 ## Setup
 
 ```bash

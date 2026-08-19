@@ -345,6 +345,7 @@ h2 .qual { color: var(--color-ash); font-weight: 500; text-transform: none;
   <div id="out"></div>
 </div>
 
+<script src="/static/vendor/motion.js"></script>
 <script>
 const $ = s => document.querySelector(s);
 const el = (t, c, txt) => { const n = document.createElement(t); if (c) n.className = c;
@@ -398,6 +399,49 @@ function highlightedEmail(text, highlights) {
   }
   html += esc(text.slice(at));
   return html;
+}
+
+
+// ---- motion ----------------------------------------------------------------
+// hover() from motion.dev drives the highlight states. It is used instead of
+// mouseenter/mouseleave because it is pointer-aware: it will not fire a stuck
+// hover on a touch tap, and it hands back a cleanup function so the entry and
+// exit animations are defined together rather than as two detached handlers.
+//
+// Marks stay display:inline so a highlight can span a wrapped line, which rules
+// out transforms - a transform has no effect on a non-replaced inline box. So
+// the animation is on colour, which does apply.
+//
+// If the bundle fails to load, the CSS :hover rules still cover the essentials.
+// Nothing here is load-bearing for reading the result.
+const HOVER_BG = 'rgba(204, 145, 102, 0.30)';   // copper, matching .hl:hover
+
+function attachMotion(root) {
+  const M = window.Motion || {};
+  if (typeof M.hover !== 'function' || typeof M.animate !== 'function') return;
+  const { hover, animate } = M;
+
+  const marks = [...root.querySelectorAll('.hl')];
+  // capture each mark's resting colour before anything animates it, since the
+  // two sources rest at different tints
+  const base = new WeakMap();
+  marks.forEach(m => base.set(m, getComputedStyle(m).backgroundColor));
+
+  const lightUp = els => els.forEach(m =>
+    animate(m, { backgroundColor: HOVER_BG }, { duration: 0.16, ease: 'easeOut' }));
+  const settle = els => els.forEach(m =>
+    animate(m, { backgroundColor: base.get(m) }, { duration: 0.28, ease: 'easeOut' }));
+
+  marks.forEach(m => hover(m, () => { lightUp([m]); return () => settle([m]); }));
+
+  // hovering an indicator lights up every span it refers to, so a reader can go
+  // from claim to evidence without hunting for it
+  root.querySelectorAll('.ind').forEach(li => {
+    const group = li.dataset.g;
+    const linked = marks.filter(m => m.dataset.g === group);
+    if (!linked.length) return;
+    hover(li, () => { lightUp(linked); return () => settle(linked); });
+  });
 }
 
 function render(d) {
@@ -460,13 +504,7 @@ function render(d) {
       if (all.every(x => x.reason === 'not_found')) {
         li.append(el('span', 'ind-note', 'quote not found'));
       }
-      // hovering the entry lights up every span it refers to, so a reader can
-      // go from claim to evidence without hunting for it
-      li.onmouseenter = () => document
-        .querySelectorAll('.hl[data-g="' + group + '"]')
-        .forEach(m => m.classList.add('on'));
-      li.onmouseleave = () => document
-        .querySelectorAll('.hl.on').forEach(m => m.classList.remove('on'));
+      li.dataset.g = group;
       ul.append(li);
     }
     card.append(ul);
@@ -483,6 +521,7 @@ function render(d) {
   }
 
   out.append(card);
+  attachMotion(card);
 }
 
 function showError(msg, findings) {
