@@ -6,343 +6,194 @@
 <title>Vulnera-gillity</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
 :root {
-  /* Colors */
-  --color-obsidian: #08080a;
-  --color-onyx: #040406;
-  --color-carbon: #121317;
-  --color-graphite: #1c1d22;
-  --color-slate: #2e3038;
-  --color-smoke: #464853;
-  --color-ash: #5e616e;
-  --color-steel: #777a88;
-  --color-fog: #9194a1;
-  --color-mist: #acafb9;
-  --color-silver: #c7c9d1;
-  --color-bone: #e2e3e9;
-  --color-paper-white: #ffffff;
-  --color-copper: #cc9166;
+  --bg:      #07090a;
+  --panel:   #0d1011;
+  --raised:  #131718;
+  --rule:    #1e2426;
+  --rule-2:  #2c3436;
+  --dim:     #5c6b6d;
+  --mid:     #8b9b9c;
+  --text:    #c3d1cf;
+  --bright:  #eaf2ef;
 
-  /* Ivy Presto is licensed; Playfair Display is the documented substitute */
-  --font-ivy-presto: 'Playfair Display', 'Ivy Presto', Georgia, serif;
-  --font-inter: 'Inter', ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --legit:   #7f9e7c;
+  --spam:    #cc9166;
+  --phish:   #c2635e;
 
-  --text-eyebrow: 13px;
-  --text-body-xs: 16px;
-  --text-body-sm: 18px;
-  --text-heading: 52px;
-  --tracking-heading: 0.52px;
-
-  --spacing-6: 6px;   --spacing-8: 8px;   --spacing-10: 10px;
-  --spacing-12: 12px; --spacing-16: 16px; --spacing-20: 20px;
-  --spacing-24: 24px; --spacing-32: 32px; --spacing-40: 40px;
-
-  --radius-sm: 2px; --radius-lg: 10px; --radius-full: 9999px;
-
-  --surface-void: #08080a;
-  --surface-card: #040406;
-  --surface-panel: #121317;
-  --surface-floating: #1c1d22;
-
-  /* Status tones. The system reserves Copper as its only brand accent, but it
-     also defines a Status Badge with "a desaturated sage that reads on dark
-     without vibrating" - status is an established functional exception, not a
-     second accent. These follow that badge pattern: desaturated, low-chroma,
-     carried on a 1px border rather than a fill. Copper serves as the middle
-     state, where a warm caution note is exactly what it already means. */
-  --tone-legitimate: #7f9e7c;
-  --tone-spam: #cc9166;
-  --tone-phishing: #c2635e;
+  --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
 * { box-sizing: border-box; }
 
+/* JetBrains Mono ships programming ligatures: -> => != >= and friends get
+   drawn as single glyphs. Email bodies contain those sequences, and the
+   evidence panel presents text as verbatim - so the font must not quietly
+   redraw it. Applied to * because it has to reach the marks too.
+   (For the record: ><> is NOT affected. It is three real characters and
+   measures three cells wide; that fish shape is just what > < > looks like.) */
+* {
+  font-variant-ligatures: none;
+  font-feature-settings: "liga" 0, "clig" 0, "calt" 0;
+}
+
 body {
-  margin: 0;
-  padding: var(--spacing-40) var(--spacing-24) 120px;
-  background: var(--surface-void);
-  color: var(--color-bone);
-  font-family: var(--font-inter);
-  font-size: var(--text-body-xs);
-  font-weight: 400;
-  line-height: 1.5;
+  margin: 0; padding: 28px 20px 90px;
+  background: var(--bg); color: var(--text);
+  font: 400 13px/1.6 var(--mono);
   -webkit-font-smoothing: antialiased;
 }
+.wrap { max-width: 860px; margin: 0 auto; }
 
-/* the system's 1216px page width is for multi-column marketing layouts; a
-   single-column reading measure is held narrower so lines stay legible */
-.wrap { max-width: 840px; margin: 0 auto; }
-
-.eyebrow {
-  font-size: var(--text-eyebrow); font-weight: 600; line-height: 1;
-  letter-spacing: -0.26px; color: var(--color-copper);
-  text-transform: uppercase; margin: 0 0 var(--spacing-16);
+/* ---- banner ---- */
+.banner {
+  color: var(--dim); font-size: 12px; line-height: 1.3;
+  white-space: pre; overflow-x: auto; margin: 0;
 }
-
-h1 {
-  font-family: var(--font-ivy-presto);
-  font-size: var(--text-heading); font-weight: 400; line-height: 1.13;
-  letter-spacing: var(--tracking-heading);
-  color: var(--color-paper-white);
-  margin: 0 0 var(--spacing-12);
+.banner b { color: var(--spam); font-weight: 400; }
+.title {
+  color: var(--bright); font-weight: 700; font-size: 20px;
+  letter-spacing: .18em; margin: 12px 0 6px;
 }
+.tagline { color: var(--mid); margin: 0 0 26px; }
+.tagline .swim { color: var(--spam); }
 
-.lede {
-  color: var(--color-fog); margin: 0 0 var(--spacing-40);
-  max-width: 56ch;
+/* ---- boxes ---- */
+.box { border: 1px solid var(--rule); background: var(--panel); margin-bottom: 18px; }
+.box > .bar {
+  border-bottom: 1px solid var(--rule);
+  padding: 7px 12px; color: var(--mid);
+  display: flex; align-items: center; gap: 10px;
 }
+.box > .bar .k { color: var(--spam); }
+.box > .bar .sp { flex: 1; }
+.box > .in { padding: 12px; }
 
-.card {
-  background: var(--surface-card);
-  border: 1px solid var(--color-graphite);
-  border-radius: var(--radius-lg);
-  padding: var(--spacing-24);
-}
-
-/* textarea keeps the 10px card radius rather than the 9999px input radius -
-   a pill only reads correctly on a single-line control */
 textarea {
-  width: 100%; min-height: 240px; resize: vertical; display: block;
-  background: var(--surface-panel);
-  color: var(--color-bone);
-  border: 1px solid var(--color-graphite);
-  border-radius: var(--radius-lg);
-  padding: var(--spacing-16);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 13px; line-height: 1.55;
+  width: 100%; min-height: 190px; resize: vertical; display: block;
+  background: var(--bg); color: var(--text);
+  border: 1px solid var(--rule); padding: 10px;
+  font: 400 12.5px/1.6 var(--mono);
 }
-textarea::placeholder { color: var(--color-steel); }
-textarea:focus { outline: none; border-color: var(--color-smoke); }
+textarea::placeholder { color: var(--dim); }
+textarea:focus { outline: none; border-color: var(--rule-2); }
 
-.controls {
-  display: flex; align-items: center; gap: var(--spacing-8);
-  margin-top: var(--spacing-16); flex-wrap: wrap;
+.controls { display: flex; align-items: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+button {
+  font: 500 12.5px/1 var(--mono); cursor: pointer;
+  background: transparent; color: var(--text);
+  border: 1px solid var(--rule-2); border-radius: 0;
+  padding: 8px 12px;
 }
+button:hover:not(:disabled) { border-color: var(--spam); color: var(--bright); }
+button:disabled { opacity: .45; cursor: default; }
+button.go { border-color: var(--mid); color: var(--bright); }
+.note { color: var(--dim); font-size: 12px; }
 
-/* the single white filled pill on the page - the system calls this a scarce
-   resource, so nothing else competes for it */
-.btn-primary {
-  font-family: var(--font-inter); font-size: 14px; font-weight: 500;
-  line-height: 1; cursor: pointer;
-  background: var(--color-paper-white); color: #000000;
-  border: 0; border-radius: var(--radius-full);
-  padding: var(--spacing-10) var(--spacing-20);
+/* ---- verdict ---- */
+.stamp {
+  display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+  padding-bottom: 10px; border-bottom: 1px solid var(--rule);
 }
-.btn-primary:disabled { opacity: .45; cursor: default; }
+.tag { font-weight: 700; letter-spacing: .12em; }
+.tag.legitimate { color: var(--legit); }
+.tag.spam       { color: var(--spam); }
+.tag.phishing   { color: var(--phish); }
+.tag.struck { text-decoration: line-through; opacity: .75; }
+.over { color: var(--phish); font-weight: 700; letter-spacing: .1em; }
 
-/* Pill Tag Button - cool grey border, deliberately reading as secondary */
-.btn-tag {
-  font-family: var(--font-inter); font-size: 13px; font-weight: 500;
-  line-height: 1; cursor: pointer;
-  background: transparent; color: var(--color-bone);
-  border: 1px solid var(--color-steel);
-  border-radius: var(--radius-full);
-  padding: var(--spacing-6) var(--spacing-10);
-}
-.btn-tag:hover { border-color: var(--color-fog); }
+.gauge { margin-left: auto; white-space: pre; }
+.gauge .fill.legitimate { color: var(--legit); }
+.gauge .fill.spam       { color: var(--spam); }
+.gauge .fill.phishing   { color: var(--phish); }
+.gauge .rest { color: var(--rule-2); }
+.gauge .num { color: var(--bright); font-weight: 700; margin-left: 8px; }
 
-.status { font-size: 13px; color: var(--color-ash); margin-left: var(--spacing-4); }
-
-#out { margin-top: var(--spacing-24); }
-
-/* ---- result ---- */
-.result-head {
-  display: flex; align-items: center; gap: var(--spacing-16);
-  flex-wrap: wrap;
-}
-
-/* Status Badge: transparent fill, 1px toned border, 12px Inter 500 */
-.badge {
-  font-size: 12px; font-weight: 500; line-height: 1;
-  letter-spacing: 0.04em; text-transform: uppercase;
-  padding: var(--spacing-6) var(--spacing-12);
-  border-radius: var(--radius-full);
-  border: 1px solid currentColor; background: transparent;
-}
-.badge.legitimate { color: var(--tone-legitimate); }
-.badge.spam       { color: var(--tone-spam); }
-.badge.phishing   { color: var(--tone-phishing); }
-
-/* Stat Display: the numeral in Ivy Presto is the system's device for giving
-   a figure editorial weight */
-.score {
-  font-family: var(--font-ivy-presto);
-  font-size: 44px; font-weight: 400; line-height: 1;
-  letter-spacing: 0.44px; font-variant-numeric: tabular-nums;
-  margin-left: auto;
-}
-.score-label {
-  font-size: 13px; font-weight: 400; color: var(--color-fog);
-  line-height: 1; margin-top: var(--spacing-6); text-align: right;
-}
-.score-wrap { margin-left: auto; }
-
-.meter {
-  height: 3px; background: var(--color-graphite);
-  border-radius: var(--radius-full); overflow: hidden;
-  margin: var(--spacing-20) 0 0;
-}
-.meter > i {
-  display: block; height: 100%; border-radius: var(--radius-full);
-  transition: width .4s cubic-bezier(.4,0,.2,1);
-}
-
-/* when the deterministic layer overrides, the badge must not read as an
-   all-clear. it keeps the model's word but takes the escalated tone and is
-   struck through, so 'legitimate' and a 0.70 score cannot be mistaken for
-   agreement. */
-.badge.overridden { color: var(--tone-phishing); text-decoration: line-through;
-                    text-decoration-thickness: 1px; opacity: .85; }
-.badge-note {
-  font-size: 11px; font-weight: 500; letter-spacing: .04em; text-transform: uppercase;
-  color: var(--tone-phishing); margin-left: var(--spacing-8);
-}
-
-.escalated {
-  font-size: 13px; line-height: 1.45; color: var(--color-copper);
-  margin: var(--spacing-12) 0 0;
-}
-
-.verdict {
-  font-size: var(--text-body-sm); line-height: 1.38; letter-spacing: -0.36px;
-  color: var(--color-bone); margin: var(--spacing-24) 0 0;
-}
+.raised { color: var(--spam); margin: 10px 0 0; }
+.verdict { color: var(--bright); margin: 12px 0 0; }
 
 h2 {
-  font-family: var(--font-inter);
-  font-size: var(--text-eyebrow); font-weight: 600; line-height: 1;
-  letter-spacing: -0.26px; text-transform: uppercase;
-  color: var(--color-copper);
-  margin: var(--spacing-32) 0 var(--spacing-12);
+  font-size: 12px; font-weight: 500; letter-spacing: .12em;
+  color: var(--spam); margin: 22px 0 8px; text-transform: uppercase;
 }
-h2 .qual { color: var(--color-ash); font-weight: 500; text-transform: none;
-           letter-spacing: -0.13px; }
+h2 .q { color: var(--dim); letter-spacing: 0; text-transform: none; }
 
-/* ---- highlighted email ---- */
+/* ---- email + marks ---- */
 .email {
-  background: var(--surface-panel);
-  border: 1px solid var(--color-graphite);
-  border-radius: var(--radius-lg);
-  padding: var(--spacing-16) var(--spacing-16) var(--spacing-40);
-  margin: 0;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 12.5px; line-height: 1.7;
-  color: var(--color-silver);
+  background: var(--bg); border: 1px solid var(--rule);
+  padding: 12px 12px 34px; margin: 0;
+  font: 400 12.5px/1.8 var(--mono); color: var(--text);
   white-space: pre-wrap; overflow-wrap: anywhere;
-  /* deliberately NOT height-capped. the email IS the evidence, so hiding most
-     of it behind an inner scrollbar defeats the highlighting entirely. it was
-     also the clipping context that cut off tooltips near the edges. a long
-     email makes a long page, which is the correct trade here. */
+  /* never height-capped: the email IS the evidence, and an inner scrollbar
+     would hide the highlights it exists to show */
 }
-
-/* two mark styles, because the two layers do not carry the same certainty:
-   the verified one is proven from the text, the model one is inferred */
 .hl {
   background: transparent; color: inherit;
-  border-bottom: 2px solid var(--tone-spam);
   position: relative; cursor: help;
-  padding-bottom: 1px;
+  border-bottom: 1px solid var(--spam);
 }
-.hl-verified { border-bottom-color: var(--tone-phishing);
-               background: color-mix(in srgb, var(--tone-phishing) 12%, transparent); }
-.hl-model    { background: color-mix(in srgb, var(--tone-spam) 10%, transparent); }
-.hl:hover, .hl.on {
-  background: color-mix(in srgb, var(--color-copper) 22%, transparent);
-  color: var(--color-paper-white);
-}
+.hl-verified { border-bottom-color: var(--phish);
+               background: rgba(194, 99, 94, .14); }
+.hl-model    { background: rgba(204, 145, 102, .11); }
+.hl:hover    { background: rgba(204, 145, 102, .30); color: var(--bright); }
 
 .hl::after {
-  content: attr(data-desc);
-  display: none;
-  position: absolute; top: calc(100% + 6px); left: 50%;
-  transform: translateX(-50%);
-  background: var(--surface-floating);
-  border: 1px solid var(--color-slate);
-  border-radius: 8px;
-  padding: 7px 10px;
-  font-family: var(--font-inter); font-size: 12px; line-height: 1.4;
-  color: var(--color-bone);
-  width: max-content; max-width: 260px;
-  white-space: normal; text-align: left;
+  content: "[ " attr(data-desc) " ]";
+  display: none; position: absolute; top: calc(100% + 5px); left: 0;
+  background: var(--raised); border: 1px solid var(--rule-2);
+  padding: 5px 8px; font-size: 11.5px; line-height: 1.45; color: var(--text);
+  width: max-content; max-width: 300px; white-space: normal;
   z-index: 5; pointer-events: none;
 }
 .hl:hover::after { display: block; }
 
-.ind { display: flex; align-items: baseline; gap: var(--spacing-8); cursor: default; }
-.ind:hover { color: var(--color-paper-white); }
-.ind::before {
-  content: ""; width: 6px; height: 6px; border-radius: 50%; flex: none;
-  background: var(--tone-spam);
-}
-.ind-verified::before { background: var(--tone-phishing); }
-.ind-note { margin-left: auto; font-size: 12px; color: var(--color-ash); flex: none; }
-
-/* Data Table Row: hairline dividers, dense, no container */
+/* ---- indicator rows ---- */
 .rows { list-style: none; margin: 0; padding: 0; }
-.rows li {
-  padding: var(--spacing-10) 0;
-  border-bottom: 1px solid var(--color-graphite);
-  font-size: 15px; color: var(--color-bone);
+.ind {
+  display: flex; gap: 8px; padding: 4px 0; cursor: default;
+  border-bottom: 1px dotted var(--rule);
 }
-.rows li:last-child { border-bottom: 0; }
+.ind:last-child { border-bottom: 0; }
+.ind:hover { color: var(--bright); }
+.ind::before { content: "><>"; color: var(--spam); flex: none; }
+.ind-verified::before { color: var(--phish); }
+.ind .n { margin-left: auto; color: var(--dim); flex: none; }
+.empty { color: var(--dim); margin: 0; }
+.err { border: 1px solid var(--phish); color: var(--phish); padding: 9px 11px; }
 
-/* the deterministic layer is separated by SURFACE, not by colour - the system
-   builds hierarchy from surface steps and hairlines rather than hue */
-.verified {
-  background: var(--surface-panel);
-  border: 1px solid var(--color-graphite);
-  border-radius: var(--radius-lg);
-  padding: var(--spacing-16) var(--spacing-20);
-}
-.verified .rows li { border-bottom-color: var(--color-slate); font-size: 14px; }
-.verified code {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: .92em; color: var(--color-silver);
-}
-
-.empty { color: var(--color-ash); font-size: 15px; margin: 0; }
-
-.error {
-  border: 1px solid var(--tone-phishing);
-  border-radius: var(--radius-lg);
-  padding: var(--spacing-16) var(--spacing-20);
-  color: var(--tone-phishing); font-size: 15px;
-}
-
-.spin {
-  display: inline-block; width: 11px; height: 11px; vertical-align: -1px;
-  border: 1.5px solid var(--color-steel); border-right-color: transparent;
-  border-radius: 50%; animation: sp .7s linear infinite;
-  margin-right: var(--spacing-8);
-}
-@keyframes sp { to { transform: rotate(360deg); } }
-
-@media (max-width: 600px) {
-  h1 { font-size: 36px; }
-  .score { font-size: 32px; }
-}
+.foot { color: var(--rule-2); margin-top: 30px; white-space: pre; font-size: 12px; overflow-x: auto; }
+.foot b { color: var(--dim); font-weight: 400; }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <p class="eyebrow">Email security</p>
-  <h1>Vulnera-gillity</h1>
-  <p class="lede">Paste an email — with headers, if you have them — to check it for phishing
-    indicators. Sender domains are compared deterministically before the message is read.</p>
 
-  <div class="card">
-    <textarea id="email" spellcheck="false"
-      placeholder="From: PayPal Security &lt;service@paypa1-secure.com&gt;&#10;Subject: URGENT: Your account has been limited&#10;&#10;Dear Valued Customer, ..."></textarea>
-    <div class="controls">
-      <button id="go" class="btn-primary">Analyse</button>
-      <button id="sample" class="btn-tag" type="button">Load sample</button>
-      <span class="status" id="status">About 7 seconds.</span>
+<pre class="banner">   <b>&gt;&lt;&gt;</b>            <b>&lt;&gt;&lt;</b>                  <b>&gt;&lt;&gt;</b>            <b>&lt;&gt;&lt;</b>
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~</pre>
+  <div class="title">VULNERA-GILLITY</div>
+  <p class="tagline">phishing detection that shows its receipts <span class="swim">&gt;&lt;&gt;</span></p>
+
+  <div class="box">
+    <div class="bar"><span class="k">$</span> paste an email <span class="sp"></span>
+      <span class="note">headers help</span></div>
+    <div class="in">
+      <textarea id="email" spellcheck="false"
+        placeholder="From: PayPal Security &lt;service@paypa1-secure.com&gt;&#10;Subject: URGENT: Your account has been limited&#10;&#10;Dear Valued Customer, ..."></textarea>
+      <div class="controls">
+        <button id="go" class="go">[ analyse ]</button>
+        <button id="sample" type="button">[ load sample ]</button>
+        <span class="note" id="status">~7s</span>
+      </div>
+      <div id="err"></div>
     </div>
   </div>
 
   <div id="out"></div>
+
+<pre class="foot">~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ gpt-4o-mini @ temp 0  ·  domain check runs locally, no api  <b>&gt;&lt;&gt;</b></pre>
 </div>
 
 <script src="/static/vendor/motion.js"></script>
@@ -350,6 +201,8 @@ h2 .qual { color: var(--color-ash); font-weight: 500; text-transform: none;
 const $ = s => document.querySelector(s);
 const el = (t, c, txt) => { const n = document.createElement(t); if (c) n.className = c;
                             if (txt != null) n.textContent = txt; return n; };
+const esc = s => s.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const escAttr = s => esc(s).replace(/"/g, '&quot;');
 
 const SAMPLE = `From: PayPal Security <service@paypa1-secure.com>
 To: customer@example.com
@@ -372,49 +225,49 @@ PayPal Security Team`;
 
 $('#sample').onclick = () => { $('#email').value = SAMPLE; $('#email').focus(); };
 
-// the meter is coloured by danger, not by category: 'spam' at 0.05 and
-// 'phishing' at 0.95 must not read as the same severity
+// coloured by DANGER, not by category - 'spam' at 0.05 and 'phishing' at 0.95
+// must not read as the same severity
 const tone = s => s >= 0.5 ? 'phishing' : s >= 0.2 ? 'spam' : 'legitimate';
 
-const esc = s => s.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
-const escAttr = s => esc(s).replace(/"/g, '&quot;');
+// an ascii meter rather than a styled div: same information, and it survives
+// being copied out of the page as plain text
+function gauge(score) {
+  const cells = 24, on = Math.max(1, Math.round(score * cells));
+  const g = el('div', 'gauge');
+  g.append(document.createTextNode('['));
+  g.append(el('span', 'fill ' + tone(score), '#'.repeat(on)));
+  g.append(el('span', 'rest', '.'.repeat(cells - on)));
+  g.append(document.createTextNode(']'));
+  g.append(el('span', 'num', score.toFixed(2)));
+  return g;
+}
 
-// build the email with <mark> spans woven in. done by walking the located
-// spans in order and escaping everything between them, so no untrusted email
-// text is ever inserted as markup - this input is hostile by definition.
+// weave <mark> spans into the email by walking located spans in order, escaping
+// everything between them - this input is hostile by definition, so no raw
+// email text is ever inserted as markup
 function highlightedEmail(text, highlights) {
-  const spans = highlights
-    .map((h, i) => ({ ...h, i }))
-    .filter(h => h.start !== null)
-    .sort((a, b) => a.start - b.start);
-
+  const spans = highlights.map((h, i) => ({ ...h, i }))
+    .filter(h => h.start !== null).sort((a, b) => a.start - b.start);
   let html = '', at = 0;
   for (const s of spans) {
     html += esc(text.slice(at, s.start));
     html += '<mark class="hl hl-' + s.source + '" data-g="' + s.group
           + '" data-desc="' + escAttr(s.description) + '">'
-          + esc(text.slice(s.start, s.end))
-          + '</mark>';
+          + esc(text.slice(s.start, s.end)) + '</mark>';
     at = s.end;
   }
-  html += esc(text.slice(at));
-  return html;
+  return html + esc(text.slice(at));
 }
 
-
 // ---- motion ----------------------------------------------------------------
-// hover() from motion.dev drives the highlight states. It is used instead of
-// mouseenter/mouseleave because it is pointer-aware: it will not fire a stuck
-// hover on a touch tap, and it hands back a cleanup function so the entry and
-// exit animations are defined together rather than as two detached handlers.
-//
-// Marks stay display:inline so a highlight can span a wrapped line, which rules
-// out transforms - a transform has no effect on a non-replaced inline box. So
-// the animation is on colour, which does apply.
-//
-// If the bundle fails to load, the CSS :hover rules still cover the essentials.
-// Nothing here is load-bearing for reading the result.
-const HOVER_BG = 'rgba(204, 145, 102, 0.30)';   // copper, matching .hl:hover
+// hover() from motion.dev rather than mouseenter: it is pointer-aware, so a
+// touch tap will not leave a highlight stuck on, and it returns a cleanup
+// function so entry and exit are defined together instead of as two detached
+// handlers. Marks stay display:inline so a highlight can span a wrapped line,
+// which rules out transforms - they have no effect on a non-replaced inline
+// box - so the animation is on colour. If the bundle fails to load, the CSS
+// :hover rules still cover the essentials.
+const HOVER_BG = 'rgba(204, 145, 102, 0.30)';
 
 function attachMotion(root) {
   const M = window.Motion || {};
@@ -422,23 +275,20 @@ function attachMotion(root) {
   const { hover, animate } = M;
 
   const marks = [...root.querySelectorAll('.hl')];
-  // capture each mark's resting colour before anything animates it, since the
-  // two sources rest at different tints
+  // capture each mark's resting tint before anything animates it - the two
+  // sources rest at different colours and must settle back to their own
   const base = new WeakMap();
   marks.forEach(m => base.set(m, getComputedStyle(m).backgroundColor));
 
   const lightUp = els => els.forEach(m =>
-    animate(m, { backgroundColor: HOVER_BG }, { duration: 0.16, ease: 'easeOut' }));
+    animate(m, { backgroundColor: HOVER_BG }, { duration: .16, ease: 'easeOut' }));
   const settle = els => els.forEach(m =>
-    animate(m, { backgroundColor: base.get(m) }, { duration: 0.28, ease: 'easeOut' }));
+    animate(m, { backgroundColor: base.get(m) }, { duration: .28, ease: 'easeOut' }));
 
   marks.forEach(m => hover(m, () => { lightUp([m]); return () => settle([m]); }));
 
-  // hovering an indicator lights up every span it refers to, so a reader can go
-  // from claim to evidence without hunting for it
   root.querySelectorAll('.ind').forEach(li => {
-    const group = li.dataset.g;
-    const linked = marks.filter(m => m.dataset.g === group);
+    const linked = marks.filter(m => m.dataset.g === li.dataset.g);
     if (!linked.length) return;
     hover(li, () => { lightUp(linked); return () => settle(linked); });
   });
@@ -446,121 +296,92 @@ function attachMotion(root) {
 
 function render(d) {
   const out = $('#out'); out.replaceChildren();
-  const card = el('div', 'card');
+  const box = el('div', 'box');
+  const bar = el('div', 'bar');
+  bar.append(el('span', 'k', '>'), document.createTextNode('verdict'));
+  box.append(bar);
+  const body = el('div', 'in');
 
-  const head = el('div', 'result-head');
-  const badge = el('span', 'badge ' + d.category + (d.escalated ? ' overridden' : ''),
-                   d.category);
-  head.append(badge);
-  if (d.escalated) head.append(el('span', 'badge-note', 'overridden'));
+  const stamp = el('div', 'stamp');
+  stamp.append(el('span', 'tag ' + d.category + (d.escalated ? ' struck' : ''),
+                  '[ ' + d.category.toUpperCase() + ' ]'));
+  if (d.escalated) stamp.append(el('span', 'over', 'OVERRIDDEN'));
+  stamp.append(gauge(d.risk_score));
+  body.append(stamp);
 
-  const wrap = el('div', 'score-wrap');
-  const score = el('div', 'score', d.risk_score.toFixed(2));
-  score.style.color = `var(--tone-${tone(d.risk_score)})`;
-  wrap.append(score, el('div', 'score-label', 'phishing risk'));
-  head.append(wrap);
-  card.append(head);
-
-  const meter = el('div', 'meter'), fill = el('i');
-  fill.style.width = Math.max(1.5, d.risk_score * 100) + '%';
-  fill.style.background = `var(--tone-${tone(d.risk_score)})`;
-  meter.append(fill); card.append(meter);
-
-  // an overridden score must say so - a user seeing 0.70 on an email the model
-  // called harmless deserves to know a deterministic check raised it
+  // an overridden score must say so - a reader seeing 0.70 on an email the
+  // model called harmless deserves to know a deterministic check raised it
   if (d.escalated) {
-    card.append(el('p', 'escalated',
-      'Raised from ' + d.model_score.toFixed(2) +
-      ' by the domain check. The model did not flag this email.'));
+    body.append(el('p', 'raised',
+      '^ raised from ' + d.model_score.toFixed(2) +
+      ' by the domain check; the model did not flag this email'));
   }
-
-  card.append(el('p', 'verdict', d.verdict));
-
-  const located = d.highlights.filter(h => h.start !== null);
-  const missing = d.highlights.filter(h => h.start === null);
+  body.append(el('p', 'verdict', d.verdict));
 
   if (d.highlights.length) {
-    const h2 = el('h2', null, 'Evidence');
-    h2.append(el('span', 'qual', '  hover a highlight'));
-    card.append(h2);
+    const h = el('h2', null, 'evidence');
+    h.append(el('span', 'q', '  hover a highlight'));
+    body.append(h);
     const pre = el('pre', 'email');
     pre.innerHTML = highlightedEmail(d.email, d.highlights);
-    card.append(pre);
+    body.append(pre);
   }
 
-  card.append(el('h2', null, d.highlights.length ? 'Indicators' : 'Indicators — none found'));
+  body.append(el('h2', null, d.highlights.length ? 'indicators' : 'indicators / none'));
   if (d.highlights.length) {
     const ul = el('ul', 'rows');
-    // one row per finding, not per highlighted string
+    // one row per FINDING - a single finding can point at several strings
     const seen = new Map();
     d.highlights.forEach(h => { if (!seen.has(h.group)) seen.set(h.group, h); });
-
     for (const [group, h] of seen) {
       const li = el('li', 'ind ind-' + h.source);
       li.append(el('span', 'ind-text', h.description));
-      // only say a quote is missing when it genuinely is. an overlapped one is
-      // already highlighted, just attributed to the layer that proved it.
       const all = d.highlights.filter(x => x.group === group);
-      if (all.every(x => x.reason === 'not_found')) {
-        li.append(el('span', 'ind-note', 'quote not found'));
-      }
+      // only say a quote is missing when it genuinely is - an overlapped one is
+      // already highlighted, just attributed to the layer that proved it
+      if (all.every(x => x.reason === 'not_found')) li.append(el('span', 'n', 'no quote'));
       li.dataset.g = group;
       ul.append(li);
     }
-    card.append(ul);
-    const notFound = [...seen.values()].filter(h =>
-      d.highlights.filter(x => x.group === h.group)
-                  .every(x => x.reason === 'not_found'));
-    if (notFound.length) {
-      card.append(el('p', 'empty',
-        notFound.length + ' of ' + seen.size +
-        ' indicators could not be matched verbatim in the email, so they are listed without a highlight.'));
-    }
+    body.append(ul);
   } else {
-    card.append(el('p', 'empty', 'No phishing indicators reported.'));
+    body.append(el('p', 'empty', 'no phishing indicators reported'));
   }
 
-  out.append(card);
-  attachMotion(card);
+  box.append(body);
+  out.append(box);
+  attachMotion(box);
 }
 
-function showError(msg, findings) {
+function showError(msg) {
   const out = $('#out'); out.replaceChildren();
-  const card = el('div', 'card');
-  card.append(el('div', 'error', msg));
-  if (findings?.length) {
-    card.append(el('h2', null, 'Domain check still ran'));
-    const ul = el('ul', 'rows');
-    findings.forEach(f => ul.append(el('li', null, f)));
-    card.append(ul);
-  }
-  out.append(card);
+  const box = el('div', 'box'), body = el('div', 'in');
+  body.append(el('div', 'err', '! ' + msg));
+  box.append(body); out.append(box);
 }
 
 $('#go').onclick = async () => {
   const email = $('#email').value.trim();
-  if (!email) { showError('Paste an email first.'); return; }
+  $('#err').replaceChildren();
+  if (!email) { $('#err').append(el('div', 'err', '! paste an email first')); return; }
 
-  // seven seconds of silence reads as a hang - say something immediately
+  // ~7 seconds of silence reads as a hang - say something straight away
   const btn = $('#go'), status = $('#status');
-  btn.disabled = true;
-  status.replaceChildren(el('span', 'spin'), document.createTextNode('Analysing…'));
+  btn.disabled = true; status.textContent = 'analysing ><>';
   $('#out').replaceChildren();
 
   try {
     const res = await fetch('/api/analyze', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email })
     });
-    const data = await res.json();
-    if (!res.ok) showError(data.error || 'Request failed.', data.domain_findings);
-    else render(data);
-  } catch (e) {
-    showError('Could not reach the server. Is app.py running?');
+    const d = await res.json();
+    if (!res.ok) showError(d.error || 'request failed');
+    else render(d);
+  } catch {
+    showError('could not reach the server - is app.py running?');
   } finally {
-    btn.disabled = false;
-    status.textContent = 'About 7 seconds.';
+    btn.disabled = false; status.textContent = '~7s';
   }
 };
 </script>
