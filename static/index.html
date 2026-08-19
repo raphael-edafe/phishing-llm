@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Vulnera-gillity</title>
+<title>vulnera-gill-ity</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -65,7 +65,7 @@ body {
   position: fixed; inset: 0; z-index: -1; margin: 0;
   overflow: hidden; pointer-events: none; user-select: none;
   color: #131b1e; font-size: 13px; line-height: 1.55;
-  white-space: pre-wrap; word-break: break-all;
+  white-space: pre;   /* real rows now, not a wrapped blob */
   /* no mask. an earlier version faded the top 22% to transparent, but the
      element is fixed, so that was a permanently blank band across the top of
      the SCREEN at every scroll position - it read as the ocean being cut off.
@@ -97,11 +97,16 @@ body {
 .f2 { animation-duration: 34s; animation-delay: -18s; opacity: .75; }
 .f3 { animation-duration: 21s; animation-delay: -12s; }
 .f4 { animation-duration: 39s; animation-delay: -30s; opacity: .6; }
+.f5 { animation-duration: 30s; animation-delay: -22s; opacity: .8; }
+.f6 { animation-duration: 45s; animation-delay:  -9s; opacity: .55; }
+.f7 { animation-duration: 24s; animation-delay: -16s; opacity: .9; }
+.f8 { animation-duration: 37s; animation-delay: -33s; opacity: .65; }
 
 /* continuous motion is a genuine accessibility problem, not just a taste one */
 @media (prefers-reduced-motion: reduce) {
   .fish { animation: none; }
-  .f1 { left: 6%; } .f2 { left: 30%; } .f3 { left: 58%; } .f4 { left: 82%; }
+  .f1 { left: 3%; }  .f2 { left: 17%; } .f3 { left: 31%; } .f4 { left: 45%; }
+  .f5 { left: 57%; } .f6 { left: 69%; } .f7 { left: 82%; } .f8 { left: 92%; }
 }
 
 .waterline {
@@ -233,11 +238,15 @@ h2 .q { color: var(--dim); letter-spacing: 0; text-transform: none; }
 <div class="sea" aria-hidden="true">
     <span class="fish f1">&gt;&lt;&gt;</span>
     <span class="fish f2 back">&lt;&gt;&lt;</span>
-    <span class="fish f3">&gt;&lt;&gt;</span>
+    <span class="fish f3">&gt;&lt;(((&gt;</span>
     <span class="fish f4 back">&lt;&gt;&lt;</span>
+    <span class="fish f5">&gt;&lt;&gt;</span>
+    <span class="fish f6 back">&lt;)))&gt;&lt;</span>
+    <span class="fish f7">&gt;&lt;&gt;</span>
+    <span class="fish f8 back">&lt;&gt;&lt;</span>
   </div>
 <pre class="waterline">~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~</pre>
-  <div class="title">VULNERA-GILLITY</div>
+  <div class="title">vulnera-gill-ity</div>
   <p class="tagline">phishing detection that shows its receipts <span class="swim">&gt;&lt;&gt;</span></p>
 
   <div class="box">
@@ -264,18 +273,20 @@ h2 .q { color: var(--dim); letter-spacing: 0; text-transform: none; }
 <script src="/static/vendor/motion.js"></script>
 <script>
 // ---- ocean -----------------------------------------------------------------
-// Wave glyphs sized to the viewport. An earlier version used a fixed 9,000
-// characters, which happened to fill a 990px window and ran out on anything
-// larger - the field has to be measured, not guessed. pre-wrap does the
-// wrapping once there are enough characters to wrap.
+// Built row by row. The first version generated one long string and let
+// pre-wrap break it, which packed every character solid and read as garbled
+// text rather than water. Rows with real newlines and a low glyph density look
+// like an ocean; a dense one looks like a corrupted file.
 //
-// The pattern is deterministic - a fixed seed, not Math.random - so the water
-// does not reshuffle when the window is resized.
+// Density increases with depth, so the surface is sparse and the bottom is
+// busier. The pattern is deterministic - a fixed seed, not Math.random - so
+// the water does not reshuffle when the window is resized.
 (() => {
   const ocean = document.querySelector('.ocean');
   if (!ocean) return;
 
-  const glyphs = ['~', '~', '~', '≈', '-', ' ', ' '];
+  const NL = String.fromCharCode(10);
+  const WAVES = ['~', '~', '~', '~', '≈', '-'];
 
   function metrics() {
     const probe = document.createElement('pre');
@@ -283,28 +294,31 @@ h2 .q { color: var(--dim); letter-spacing: 0; text-transform: none; }
                         + getComputedStyle(ocean).font;
     probe.textContent = 'X'.repeat(100);
     document.body.append(probe);
-    // one probe gives both metrics: a single-line <pre> is exactly one
-    // line tall, so no newline is needed to measure line height
+    // a single-line <pre> is exactly one line tall, so one probe gives both
     const rect = probe.getBoundingClientRect();
-    const charW = rect.width / 100;
-    const lineH = rect.height;
     probe.remove();
-    return { charW: charW || 8, lineH: lineH || 20 };
+    return { charW: (rect.width / 100) || 8, lineH: rect.height || 20 };
   }
 
   function fill() {
     const { charW, lineH } = metrics();
-    // +25% margin so a wrap landing awkwardly never leaves the last rows short
-    const cols = Math.ceil(window.innerWidth / charW);
-    const rows = Math.ceil(window.innerHeight / lineH);
-    const need = Math.ceil(cols * rows * 1.25);
-    if (ocean.textContent.length >= need) return;   // already deep enough
+    const cols = Math.ceil(window.innerWidth / charW) + 2;
+    const rows = Math.ceil(window.innerHeight / lineH) + 2;
 
     let seed = 20260819;
     const rnd = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
-    let out = '';
-    for (let i = 0; i < need; i++) out += glyphs[Math.floor(rnd() * glyphs.length)];
-    ocean.textContent = out;
+
+    const lines = [];
+    for (let r = 0; r < rows; r++) {
+      // 4% at the surface up to ~14% at the bottom
+      const density = 0.04 + (r / rows) * 0.10;
+      let line = '';
+      for (let c = 0; c < cols; c++) {
+        line += rnd() < density ? WAVES[Math.floor(rnd() * WAVES.length)] : ' ';
+      }
+      lines.push(line);
+    }
+    ocean.textContent = lines.join(NL);
   }
 
   fill();
