@@ -51,7 +51,19 @@ body {
   font: 400 13px/1.6 var(--mono);
   -webkit-font-smoothing: antialiased;
 }
-.wrap { max-width: 860px; margin: 0 auto; }
+.wrap { max-width: 1480px; margin: 0 auto; }
+
+/* One column by default. Once a result exists AND there is room, the composer
+   and the verdict sit side by side - on a 2000px screen the single column left
+   57% of the width empty, and reading the verdict against the email without
+   scrolling is the whole job. .split is added by render() rather than :has()
+   so an empty second column never sits there before the first analysis. */
+.cols { display: grid; grid-template-columns: 1fr; gap: 18px; align-items: start; }
+@media (min-width: 1180px) {
+  .cols.split { grid-template-columns: minmax(430px, 1fr) minmax(520px, 1.1fr); }
+  .cols.split .box { margin-bottom: 0; }
+  .cols.split textarea { min-height: 340px; }
+}
 
 
 /* ---- ocean ----------------------------------------------------------------
@@ -249,6 +261,7 @@ h2 .q { color: var(--dim); letter-spacing: 0; text-transform: none; }
   <div class="title">vulnera-gill-ity</div>
   <p class="tagline">phishing detection that shows its receipts <span class="swim">&gt;&lt;&gt;</span></p>
 
+  <div class="cols" id="cols">
   <div class="box">
     <div class="bar"><span class="k">$</span> paste an email <span class="sp"></span>
       <span class="note">headers help</span></div>
@@ -265,6 +278,7 @@ h2 .q { color: var(--dim); letter-spacing: 0; text-transform: none; }
   </div>
 
   <div id="out"></div>
+  </div>
 
 <pre class="foot">~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  gpt-4o-mini @ temp 0  ·  domain check runs locally, no api  <b>&gt;&lt;&gt;</b></pre>
@@ -478,6 +492,7 @@ function render(d) {
 
   box.append(body);
   out.append(box);
+  $('#cols').classList.add('split');
   attachMotion(box);
 }
 
@@ -486,6 +501,7 @@ function showError(msg) {
   const box = el('div', 'box'), body = el('div', 'in');
   body.append(el('div', 'err', '! ' + msg));
   box.append(body); out.append(box);
+  $('#cols').classList.add('split');
 }
 
 $('#go').onclick = async () => {
@@ -497,6 +513,7 @@ $('#go').onclick = async () => {
   const btn = $('#go'), status = $('#status');
   btn.disabled = true; status.textContent = 'analysing ><>';
   $('#out').replaceChildren();
+  $('#cols').classList.remove('split');
 
   try {
     const res = await fetch('/api/analyze', {
