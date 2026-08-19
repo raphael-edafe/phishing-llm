@@ -20,12 +20,14 @@
   --bright:  #eaf2ef;
 
   --legit:   #7f9e7c;
-  --spam:    #cc9166;
+  /* doubles as the spam STATUS colour and the general UI accent. green /
+     blue / red stay mutually distinguishable as verdicts. */
+  --spam:    #5f9ec9;
   --phish:   #c2635e;
 
   /* the decorative fish. deliberately distinct from all three status
      tones so a swimming ><> is never mistaken for a verdict. */
-  --fish:    #6d9bbd;
+  --fish:    #7fb4d6;
 
   --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
@@ -51,12 +53,61 @@ body {
 }
 .wrap { max-width: 860px; margin: 0 auto; }
 
-/* ---- banner ---- */
-.banner {
-  color: var(--dim); font-size: 12px; line-height: 1.3;
-  white-space: pre; overflow-x: auto; margin: 0;
+
+/* ---- ocean ----------------------------------------------------------------
+   A fixed field of wave glyphs behind everything. Three rules keep it from
+   getting in the way: it is barely above the background colour, it is masked
+   to fade out where the content sits, and it takes no pointer events and no
+   layout space. It is decoration and is hidden from assistive tech.
+   A negative z-index child paints above the body background but below
+   in-flow content, which is exactly the layer wanted. */
+.ocean {
+  position: fixed; inset: 0; z-index: -1; margin: 0;
+  overflow: hidden; pointer-events: none; user-select: none;
+  color: #131b1e; font-size: 13px; line-height: 1.55;
+  white-space: pre-wrap; word-break: break-all;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 22%, #000 100%);
+          mask-image: linear-gradient(to bottom, transparent 0%, #000 22%, #000 100%);
 }
-.banner b { color: var(--fish); font-weight: 400; }
+
+/* ---- banner ---- */
+/* CSS rather than motion.dev for this one: a negative animation-delay starts
+   each fish part-way through its crossing, so the strip is populated the
+   instant the page loads instead of empty until the first fish drifts in.
+   Motion owns the hover interactions; this is ambient and belongs in CSS. */
+.sea {
+  position: relative; height: 17px; overflow: hidden;
+  font-size: 12px; line-height: 17px;
+}
+.fish {
+  position: absolute; top: 0; white-space: pre;
+  color: var(--fish); animation: swim-right linear infinite;
+}
+.fish.back { animation-name: swim-left; }
+
+@keyframes swim-right { from { left: -4ch; } to { left: 100%; } }
+@keyframes swim-left  { from { left: 100%; } to { left: -4ch; } }
+
+/* varied speeds so they never move in lockstep, and negative delays so they
+   start already spread across the strip */
+.f1 { animation-duration: 26s; animation-delay:  -4s; }
+.f2 { animation-duration: 34s; animation-delay: -18s; opacity: .75; }
+.f3 { animation-duration: 21s; animation-delay: -12s; }
+.f4 { animation-duration: 39s; animation-delay: -30s; opacity: .6; }
+
+/* continuous motion is a genuine accessibility problem, not just a taste one */
+@media (prefers-reduced-motion: reduce) {
+  .fish { animation: none; }
+  .f1 { left: 6%; } .f2 { left: 30%; } .f3 { left: 58%; } .f4 { left: 82%; }
+}
+
+.waterline {
+  color: var(--dim); font-size: 12px; line-height: 1.3;
+  white-space: pre; margin: 0;
+  overflow: hidden;   /* overfilled with tildes and clipped, so the water spans
+                         the container at any width and the fish never swim
+                         past the end of it */
+}
 .title {
   color: var(--bright); font-weight: 700; font-size: 20px;
   letter-spacing: .18em; margin: 12px 0 6px;
@@ -140,8 +191,8 @@ h2 .q { color: var(--dim); letter-spacing: 0; text-transform: none; }
 }
 .hl-verified { border-bottom-color: var(--phish);
                background: rgba(194, 99, 94, .14); }
-.hl-model    { background: rgba(204, 145, 102, .11); }
-.hl:hover    { background: rgba(204, 145, 102, .30); color: var(--bright); }
+.hl-model    { background: rgba(95, 158, 201, .13); }
+.hl:hover    { background: rgba(95, 158, 201, .32); color: var(--bright); }
 
 .hl::after {
   content: "[ " attr(data-desc) " ]";
@@ -167,15 +218,22 @@ h2 .q { color: var(--dim); letter-spacing: 0; text-transform: none; }
 .empty { color: var(--dim); margin: 0; }
 .err { border: 1px solid var(--phish); color: var(--phish); padding: 9px 11px; }
 
-.foot { color: var(--rule-2); margin-top: 30px; white-space: pre; font-size: 12px; overflow-x: auto; }
+.foot { color: var(--rule-2); margin-top: 30px; white-space: pre; font-size: 12px;
+        overflow: hidden; }
 .foot b { color: var(--fish); font-weight: 400; opacity: .7; }
 </style>
 </head>
 <body>
+<pre class="ocean" aria-hidden="true"></pre>
 <div class="wrap">
 
-<pre class="banner">   <b>&gt;&lt;&gt;</b>            <b>&lt;&gt;&lt;</b>                  <b>&gt;&lt;&gt;</b>            <b>&lt;&gt;&lt;</b>
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~</pre>
+<div class="sea" aria-hidden="true">
+    <span class="fish f1">&gt;&lt;&gt;</span>
+    <span class="fish f2 back">&lt;&gt;&lt;</span>
+    <span class="fish f3">&gt;&lt;&gt;</span>
+    <span class="fish f4 back">&lt;&gt;&lt;</span>
+  </div>
+<pre class="waterline">~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~</pre>
   <div class="title">VULNERA-GILLITY</div>
   <p class="tagline">phishing detection that shows its receipts <span class="swim">&gt;&lt;&gt;</span></p>
 
@@ -196,12 +254,28 @@ h2 .q { color: var(--dim); letter-spacing: 0; text-transform: none; }
 
   <div id="out"></div>
 
-<pre class="foot">~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+<pre class="foot">~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  gpt-4o-mini @ temp 0  ·  domain check runs locally, no api  <b>&gt;&lt;&gt;</b></pre>
 </div>
 
 <script src="/static/vendor/motion.js"></script>
 <script>
+// ---- ocean -----------------------------------------------------------------
+// Wave glyphs generated rather than written out: pre-wrap lets the browser do
+// the wrapping, so it fills any viewport without measuring anything. The
+// pattern is deterministic - a fixed seed, not Math.random - so the water does
+// not reshuffle on every render, which would be distracting.
+(() => {
+  const ocean = document.querySelector('.ocean');
+  if (!ocean) return;
+  let seed = 20260819;
+  const rnd = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+  const glyphs = ['~', '~', '~', '≈', '-', ' ', ' '];
+  let out = '';
+  for (let i = 0; i < 9000; i++) out += glyphs[Math.floor(rnd() * glyphs.length)];
+  ocean.textContent = out;
+})();
+
 const $ = s => document.querySelector(s);
 const el = (t, c, txt) => { const n = document.createElement(t); if (c) n.className = c;
                             if (txt != null) n.textContent = txt; return n; };
@@ -271,7 +345,7 @@ function highlightedEmail(text, highlights) {
 // which rules out transforms - they have no effect on a non-replaced inline
 // box - so the animation is on colour. If the bundle fails to load, the CSS
 // :hover rules still cover the essentials.
-const HOVER_BG = 'rgba(204, 145, 102, 0.30)';
+const HOVER_BG = 'rgba(95, 158, 201, 0.32)';
 
 function attachMotion(root) {
   const M = window.Motion || {};
