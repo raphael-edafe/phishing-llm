@@ -220,6 +220,62 @@ h2 {
 h2 .qual { color: var(--color-ash); font-weight: 500; text-transform: none;
            letter-spacing: -0.13px; }
 
+/* ---- highlighted email ---- */
+.email {
+  background: var(--surface-panel);
+  border: 1px solid var(--color-graphite);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-16) var(--spacing-16) var(--spacing-40);
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12.5px; line-height: 1.7;
+  color: var(--color-silver);
+  white-space: pre-wrap; overflow-wrap: anywhere;
+  max-height: 420px; overflow-y: auto;
+}
+
+/* two mark styles, because the two layers do not carry the same certainty:
+   the verified one is proven from the text, the model one is inferred */
+.hl {
+  background: transparent; color: inherit;
+  border-bottom: 2px solid var(--tone-spam);
+  position: relative; cursor: help;
+  padding-bottom: 1px;
+}
+.hl-verified { border-bottom-color: var(--tone-phishing);
+               background: color-mix(in srgb, var(--tone-phishing) 12%, transparent); }
+.hl-model    { background: color-mix(in srgb, var(--tone-spam) 10%, transparent); }
+.hl:hover, .hl.on {
+  background: color-mix(in srgb, var(--color-copper) 22%, transparent);
+  color: var(--color-paper-white);
+}
+
+.hl::after {
+  content: attr(data-desc);
+  display: none;
+  position: absolute; top: calc(100% + 6px); left: 50%;
+  transform: translateX(-50%);
+  background: var(--surface-floating);
+  border: 1px solid var(--color-slate);
+  border-radius: 8px;
+  padding: 7px 10px;
+  font-family: var(--font-inter); font-size: 12px; line-height: 1.4;
+  color: var(--color-bone);
+  width: max-content; max-width: 260px;
+  white-space: normal; text-align: left;
+  z-index: 5; pointer-events: none;
+}
+.hl:hover::after { display: block; }
+
+.ind { display: flex; align-items: baseline; gap: var(--spacing-8); cursor: default; }
+.ind:hover { color: var(--color-paper-white); }
+.ind::before {
+  content: ""; width: 6px; height: 6px; border-radius: 50%; flex: none;
+  background: var(--tone-spam);
+}
+.ind-verified::before { background: var(--tone-phishing); }
+.ind-note { margin-left: auto; font-size: 12px; color: var(--color-ash); flex: none; }
+
 /* Data Table Row: hairline dividers, dense, no container */
 .rows { list-style: none; margin: 0; padding: 0; }
 .rows li {
@@ -316,6 +372,31 @@ $('#sample').onclick = () => { $('#email').value = SAMPLE; $('#email').focus(); 
 // 'phishing' at 0.95 must not read as the same severity
 const tone = s => s >= 0.5 ? 'phishing' : s >= 0.2 ? 'spam' : 'legitimate';
 
+const esc = s => s.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const escAttr = s => esc(s).replace(/"/g, '&quot;');
+
+// build the email with <mark> spans woven in. done by walking the located
+// spans in order and escaping everything between them, so no untrusted email
+// text is ever inserted as markup - this input is hostile by definition.
+function highlightedEmail(text, highlights) {
+  const spans = highlights
+    .map((h, i) => ({ ...h, i }))
+    .filter(h => h.start !== null)
+    .sort((a, b) => a.start - b.start);
+
+  let html = '', at = 0;
+  for (const s of spans) {
+    html += esc(text.slice(at, s.start));
+    html += '<mark class="hl hl-' + s.source + '" data-g="' + s.group
+          + '" data-desc="' + escAttr(s.description) + '">'
+          + esc(text.slice(s.start, s.end))
+          + '</mark>';
+    at = s.end;
+  }
+  html += esc(text.slice(at));
+  return html;
+}
+
 function render(d) {
   const out = $('#out'); out.replaceChildren();
   const card = el('div', 'card');
@@ -348,23 +429,52 @@ function render(d) {
 
   card.append(el('p', 'verdict', d.verdict));
 
-  // shown above the model's own findings, and on a raised surface, because
-  // this half is a verifiable fact about the text rather than a judgement
-  if (d.domain_findings?.length) {
-    const h = el('h2', null, 'Domain check');
-    h.append(el('span', 'qual', '  verified, not inferred'));
-    card.append(h);
-    const box = el('div', 'verified');
-    const ul = el('ul', 'rows');
-    d.domain_findings.forEach(f => ul.append(el('li', null, f)));
-    box.append(ul); card.append(box);
+  const located = d.highlights.filter(h => h.start !== null);
+  const missing = d.highlights.filter(h => h.start === null);
+
+  if (d.highlights.length) {
+    const h2 = el('h2', null, 'Evidence');
+    h2.append(el('span', 'qual', '  hover a highlight'));
+    card.append(h2);
+    const pre = el('pre', 'email');
+    pre.innerHTML = highlightedEmail(d.email, d.highlights);
+    card.append(pre);
   }
 
-  card.append(el('h2', null, 'Indicators'));
-  if (d.flags.length) {
+  card.append(el('h2', null, d.highlights.length ? 'Indicators' : 'Indicators — none found'));
+  if (d.highlights.length) {
     const ul = el('ul', 'rows');
-    d.flags.forEach(f => ul.append(el('li', null, f)));
+    // one row per finding, not per highlighted string
+    const seen = new Map();
+    d.highlights.forEach(h => { if (!seen.has(h.group)) seen.set(h.group, h); });
+
+    for (const [group, h] of seen) {
+      const li = el('li', 'ind ind-' + h.source);
+      li.append(el('span', 'ind-text', h.description));
+      // only say a quote is missing when it genuinely is. an overlapped one is
+      // already highlighted, just attributed to the layer that proved it.
+      const all = d.highlights.filter(x => x.group === group);
+      if (all.every(x => x.reason === 'not_found')) {
+        li.append(el('span', 'ind-note', 'quote not found'));
+      }
+      // hovering the entry lights up every span it refers to, so a reader can
+      // go from claim to evidence without hunting for it
+      li.onmouseenter = () => document
+        .querySelectorAll('.hl[data-g="' + group + '"]')
+        .forEach(m => m.classList.add('on'));
+      li.onmouseleave = () => document
+        .querySelectorAll('.hl.on').forEach(m => m.classList.remove('on'));
+      ul.append(li);
+    }
     card.append(ul);
+    const notFound = [...seen.values()].filter(h =>
+      d.highlights.filter(x => x.group === h.group)
+                  .every(x => x.reason === 'not_found'));
+    if (notFound.length) {
+      card.append(el('p', 'empty',
+        notFound.length + ' of ' + seen.size +
+        ' indicators could not be matched verbatim in the email, so they are listed without a highlight.'));
+    }
   } else {
     card.append(el('p', 'empty', 'No phishing indicators reported.'));
   }

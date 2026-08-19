@@ -92,6 +92,25 @@ wants to stop, and only the caller knows which. It does handle a `None` parse in
 model hitting a length limit before producing complete JSON — because no caller should ever
 receive `None` back from it.
 
+## Evidence, not assertions
+
+Every indicator carries the verbatim text it rests on, and the UI locates that text in the
+original email and highlights it. Hovering a highlight names the indicator; hovering an
+indicator lights up every span it refers to.
+
+The two layers are marked differently because they do not carry the same certainty — a
+deterministic domain finding is a fact about the text, a model flag is a judgement about it.
+
+Matching runs against a whitespace-normalised copy of the email, so a quote spanning a wrapped
+line still resolves. **A quote that cannot be found is listed without a highlight rather than
+approximated** — marking the wrong span would attach a claim to text that does not support it.
+
+Requiring quotes also constrains the model: it is harder to invent "generic greeting" for an
+email addressed by name when a verbatim quote has to be produced alongside it. The cost is
+measured and real — flag count fell from a stable 5 to 4–5 per run, and one genuine indicator
+went from appearing in nearly every run to roughly one in eight, because the model declines to
+report what it is unsure it can quote. Score, category and verdict were unchanged.
+
 ## The bug worth reading about: the model was reciting the checklist
 
 A detector that flags everything is useless, and that failure is invisible if you only ever

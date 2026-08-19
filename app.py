@@ -3,25 +3,36 @@
     python app.py     ->  http://localhost:5057
 
 A thin Flask wrapper around scan(). The detection logic stays in
-detect_phishing.py so there is exactly one copy of the prompt, the schema, and
+detect_phishing.py so there is exactly one copy of the prompt, the schema and
 the two-layer composition - the UI never reimplements any of them.
 
-scan() runs both layers per request:
-
-  1. domain_check  - deterministic, free, instant, no API call
-  2. analyze()     - the model, ~7 seconds, a fraction of a cent
-
-They are reported separately because one is a verifiable fact about the text
-and the other is a judgement. Presenting them identically would overstate the
-second.
+Beyond calling scan(), this module does one thing: it locates each indicator's
+quoted evidence inside the original email so the front end can highlight it.
+Both layers are located the same way but tagged differently, because a
+deterministic domain finding is a fact about the text and a model flag is a
+judgement about it.
 """
+
+import re
 
 from flask import Flask, jsonify, request, send_from_directory
 from openai import OpenAIError
 
 from detect_phishing import scan
+from spans import find_spans
 
 app = Flask(__name__, static_folder="static")
+
+# domain_check phrases its findings with the domains in single quotes, e.g.
+# "body cites 'wetransfer.com' but the email was sent from 'we-transfer.com'".
+# those quoted tokens are exactly the text worth highlighting.
+QUOTED_RE = re.compile(r"'([^']+)'")
+
+
+def domain_highlights(finding: str) -> list[dict]:
+    """Turn one domain finding into highlightable quotes."""
+    return [{"description": finding, "quote": q, "source": "verified"}
+            for q in QUOTED_RE.findall(finding)]
 
 
 @app.get("/")
@@ -46,14 +57,28 @@ def api_analyze():
     except RuntimeError as exc:
         return jsonify(error=str(exc)), 502
 
+    # verified findings are located first so they win any overlap - if both
+    # layers point at the same domain, the provable one should own the mark
+    items = [h for f in result.domain_findings for h in domain_highlights(f)]
+    items += [{"description": f.description, "quote": f.quote, "source": "model"}
+              for f in result.analysis.flags]
+
+    # one finding can point at several strings - "body cites 'x' but was sent
+    # from 'y'" marks two. group by description so the indicator is LISTED once
+    # while still highlighting every span it refers to.
+    groups: dict[str, int] = {}
+    for item in items:
+        item["group"] = groups.setdefault(item["description"], len(groups))
+
     return jsonify(
+        email=email,
         category=result.analysis.category,
         risk_score=result.risk_score,
         model_score=result.analysis.risk_score,
         escalated=result.escalated,
-        flags=result.analysis.flags,
         verdict=result.analysis.verdict,
         domain_findings=result.domain_findings,
+        highlights=find_spans(email, items),
     )
 
 

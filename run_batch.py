@@ -167,7 +167,8 @@ def score_sample(sample: pd.DataFrame, results_path: Path) -> None:
                 record |= {
                     "category": result.category,
                     "risk_score": result.risk_score,
-                    "flags": result.flags,
+                    # Flag objects are not JSON serialisable - dump each to a dict
+                    "flags": [f.model_dump() for f in result.flags],
                     "verdict": result.verdict,
                     "error": None,
                 }

@@ -42,9 +42,11 @@ def run(name: str, email: str, runs: int) -> None:
         scores.append(r.risk_score)
         categories[r.category] += 1
         flag_counts.append(len(r.flags))
+        # flags carry a description plus the verbatim quote they rest on; the
+        # description is what the recitation check cares about
         for f in r.flags:
-            seen_flags[f] += 1
-        if any(is_generic(f) for f in r.flags):
+            seen_flags[f.description] += 1
+        if any(is_generic(f.description) for f in r.flags):
             bad_runs += 1
 
     print(f"===== {name}  ({runs} runs) =====")

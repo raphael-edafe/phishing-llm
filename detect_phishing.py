@@ -30,6 +30,33 @@ if not OPENAI_API_KEY:
 client = OpenAI(api_key=OPENAI_API_KEY)
 
 
+class Flag(BaseModel):
+    """One indicator, paired with the text that demonstrates it.
+
+    The quote is what makes an indicator checkable rather than asserted - the
+    UI locates it in the email and highlights it, so a reader can see the
+    evidence instead of taking the description on trust. It also constrains the
+    model: it is harder to invent 'generic greeting' for an email addressed by
+    name when a verbatim quote has to be produced alongside it.
+    """
+    description: str = Field(
+        description="One concrete observation in a short phrase of about 3-8 "
+                    "words, e.g. 'sender domain mismatches claimed brand' or "
+                    "'threatens account closure within 24 hours'. Describe what "
+                    "is actually in this email rather than naming a generic "
+                    "category."
+    )
+    quote: str = Field(
+        description="The exact text from the email that demonstrates this "
+                    "indicator, copied VERBATIM - same words, same spelling, "
+                    "same punctuation, character for character. Keep it short: "
+                    "a few words up to one sentence. Do not paraphrase, do not "
+                    "summarise, do not correct spelling. If the indicator comes "
+                    "from a header, quote the header line. If no exact text can "
+                    "be quoted, do not report the indicator at all."
+    )
+
+
 # defines the shape of the model's *response*, not the request we send.
 # pydantic converts these annotations into a JSON schema that goes out with
 # the request, and the API is then constrained to produce matching JSON.
@@ -61,14 +88,10 @@ class PhishingAnalysis(BaseModel):
                     "the full range - 0.15 and 0.35 are meaningfully different "
                     "judgements, so do not round to the nearest 0.1."
     )
-    flags: list[str] = Field(
-        description="Specific phishing indicators found in this email. Each "
-                    "entry names one concrete observation in a short phrase of "
-                    "about 3-8 words, e.g. 'sender domain mismatches claimed "
-                    "brand' or 'threatens account closure within 24 hours'. "
-                    "Describe what is actually in this email rather than "
-                    "naming generic categories. Return an empty list if the "
-                    "email shows no indicators."
+    flags: list[Flag] = Field(
+        description="Specific phishing indicators found in this email, each "
+                    "paired with the verbatim text that demonstrates it. "
+                    "Return an empty list if the email shows no indicators."
     )
     verdict: str = Field(
         description="A single sentence summarising the assessment and the "
@@ -98,8 +121,10 @@ Check the email against these questions, and report only what you observe:
 - Are there spelling or grammatical errors?
 - Does it reference an attachment that arrives without explanation?
 
-Each indicator must describe what this specific email does, naming or quoting
-the actual text. If the email shows no genuine indicators, return an empty list.
+Every indicator must come with a VERBATIM quote from the email - the exact
+words, copied character for character, not paraphrased or tidied up. If you
+cannot quote the text an indicator rests on, do not report that indicator. If
+the email shows no genuine indicators, return an empty list.
 
 Score honestly. A routine, legitimate email should score low - do not invent
 red flags to justify a high score."""
