@@ -25,7 +25,11 @@ you'd have to parse yourself.
 |---|---|---|---|
 | **Phishing recall** | 99% (99/100) | **100%** (100/100) | Nazario corpus, all phishing |
 | **False positive rate** | 0% (0/50) | **0%** (0/50) | SpamAssassin ham |
-| Advertising correctly not flagged | 47/50 | 47/50 | SpamAssassin spam |
+| Advertising correctly not flagged | 46/49 | 46/49 | SpamAssassin spam |
+
+Re-measured on the current schema after `quote` was added to each flag. One of
+the 100 SpamAssassin rows failed rather than scoring - see the limitation
+below - so that corpus is 99 scored.
 
 Two corpora, because they answer different questions. Nazario is entirely phishing, so it
 measures recall — how much gets through. SpamAssassin supplies legitimate mail, so it measures
@@ -50,11 +54,11 @@ The spam corpora everyone evaluates against label mail as **spam or ham**. This 
 predicted category vs corpus label   (SpamAssassin, n=100)
 
               legitimate    spam   phishing
-true ham              32      18          0
-true spam              0      47          3
+true ham              33      17          0
+true spam              0      46          3
 ```
 
-**Only 3 of 50 emails labelled "spam" are actually phishing.** The rest are honest, unwanted
+**Only 3 of 49 emails labelled "spam" are actually phishing.** The rest are honest, unwanted
 advertising — supplements, software, business-database CDs. The detector says so in its own
 words: *"a spam advertisement for a product, lacking any indicators of phishing."*
 
@@ -154,6 +158,15 @@ no threat, no credential request. Every email the model caught had several signa
 this one had exactly one, and a quiet one. `domain_check` escalates it, taking recall to
 100/100 — but it fired on **exactly one email in the 100-row sample**, so that is a specific
 failure mode closed, not a general improvement in detection.
+
+**Requiring a quote can push a response past the token limit.** Pairing every
+indicator with verbatim text makes responses longer, and on a corpus run of 100
+emails one hit the completion length cap and came back unparseable
+(`LengthFinishReasonError`). It failed cleanly - the row was recorded as failed
+and the run continued, which is what the per-row error handling exists for -
+but it is a real cost of the evidence requirement, at roughly 1%. Tightening
+the instruction to quote a short fragment rather than a full sentence would
+reduce it.
 
 **Spam vs legitimate is not determinable from content.** Whether a newsletter is subscribed or
 unsolicited is a fact about the recipient's prior consent, and it does not appear anywhere in

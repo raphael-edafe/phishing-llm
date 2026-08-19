@@ -1,6 +1,11 @@
-"""Replay the deterministic layer over already-scored results. No API calls."""
-import json, pathlib
+"""Replay the deterministic layer over already-scored results. No API calls.
+
+    python measure_escalation.py [tag]
+"""
+import json, pathlib, sys
 import run_batch
+
+TAG = sys.argv[1] if len(sys.argv) > 1 else 'cat'
 from detect_phishing import split_headers, ESCALATE_BELOW, ESCALATED_FLOOR
 from domain_check import check as domain_check
 
@@ -26,7 +31,7 @@ def replay(dataset, tag):
 print(f"policy: escalate to {ESCALATED_FLOOR} when a domain finding lands "
       f"below {ESCALATE_BELOW}\n")
 
-naz = replay("nazario", "cat")
+naz = replay("nazario", TAG)
 fired = [r for r in naz if r["findings"]]
 esc   = [r for r in naz if r["esc"]]
 print(f"NAZARIO (all phishing, n={len(naz)})")
@@ -44,7 +49,7 @@ for r in esc:
         print(f"      {f}")
 
 print()
-sa = replay("spamassassin", "cat2")
+sa = replay("spamassassin", TAG)
 ham = [r for r in sa if r["label"] == "ham"]
 spam = [r for r in sa if r["label"] == "spam"]
 print(f"SPAMASSASSIN ham (n={len(ham)}) - the false-positive control")
