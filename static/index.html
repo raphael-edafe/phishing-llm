@@ -231,7 +231,10 @@ h2 .qual { color: var(--color-ash); font-weight: 500; text-transform: none;
   font-size: 12.5px; line-height: 1.7;
   color: var(--color-silver);
   white-space: pre-wrap; overflow-wrap: anywhere;
-  max-height: 420px; overflow-y: auto;
+  /* deliberately NOT height-capped. the email IS the evidence, so hiding most
+     of it behind an inner scrollbar defeats the highlighting entirely. it was
+     also the clipping context that cut off tooltips near the edges. a long
+     email makes a long page, which is the correct trade here. */
 }
 
 /* two mark styles, because the two layers do not carry the same certainty:
