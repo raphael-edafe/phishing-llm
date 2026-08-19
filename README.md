@@ -225,6 +225,30 @@ animation is on colour. The bundle is vendored into `static/vendor/` rather than
 CDN, both so it works offline and because an extension's CSP would block a remote script. If it
 fails to load, the CSS `:hover` rules still cover the essentials.
 
+## Demo
+
+A static demo lives in [`docs/`](docs/) and is published with GitHub Pages
+(Settings -> Pages -> Deploy from branch -> `main` / `/docs`).
+
+It is genuinely interactive - four recorded analyses, with working highlights,
+hover, layer colours and the escalation display - but there is no server behind
+it. The UI already renders from a JSON payload, so saved outputs are swapped in
+where the API response would go. Nothing to deploy, nothing to expire, no key,
+no cost.
+
+It is labelled as recorded rather than live, on the page itself. A demo that
+lets a reader assume it is calling an API when it is not would be the same kind
+of overstatement this detector exists to avoid.
+
+Rebuild it after any UI change:
+
+```bash
+python build_demo.py
+```
+
+It is generated from `static/index.html`, so the demo and the real interface
+cannot drift apart.
+
 ## Setup
 
 ```bash

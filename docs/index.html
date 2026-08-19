@@ -1,0 +1,520 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>vulnera-gill-ity</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:      #07090a;
+  --panel:   #0d1011;
+  --raised:  #131718;
+  --rule:    #1e2426;
+  --rule-2:  #2c3436;
+  --dim:     #5c6b6d;
+  --mid:     #8b9b9c;
+  --text:    #c3d1cf;
+  --bright:  #eaf2ef;
+
+  --legit:   #7f9e7c;
+  /* doubles as the spam STATUS colour and the general UI accent. green /
+     blue / red stay mutually distinguishable as verdicts. */
+  --spam:    #5f9ec9;
+  --phish:   #c2635e;
+
+  /* the decorative fish. deliberately distinct from all three status
+     tones so a swimming ><> is never mistaken for a verdict. */
+  --fish:    #7fb4d6;
+
+  --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+* { box-sizing: border-box; }
+
+/* JetBrains Mono ships programming ligatures: -> => != >= and friends get
+   drawn as single glyphs. Email bodies contain those sequences, and the
+   evidence panel presents text as verbatim - so the font must not quietly
+   redraw it. Applied to * because it has to reach the marks too.
+   (For the record: ><> is NOT affected. It is three real characters and
+   measures three cells wide; that fish shape is just what > < > looks like.) */
+* {
+  font-variant-ligatures: none;
+  font-feature-settings: "liga" 0, "clig" 0, "calt" 0;
+}
+
+body {
+  margin: 0; padding: 28px 20px 90px;
+  background: var(--bg); color: var(--text);
+  font: 400 13px/1.6 var(--mono);
+  -webkit-font-smoothing: antialiased;
+}
+.wrap { max-width: 1480px; margin: 0 auto; }
+
+/* One column by default. Once a result exists AND there is room, the composer
+   and the verdict sit side by side - on a 2000px screen the single column left
+   57% of the width empty, and reading the verdict against the email without
+   scrolling is the whole job. .split is added by render() rather than :has()
+   so an empty second column never sits there before the first analysis. */
+.cols { display: grid; grid-template-columns: 1fr; gap: 18px; align-items: start; }
+@media (min-width: 1180px) {
+  .cols.split { grid-template-columns: minmax(430px, 1fr) minmax(520px, 1.1fr); }
+  .cols.split .box { margin-bottom: 0; }
+  .cols.split textarea { min-height: 340px; }
+}
+
+
+/* ---- ocean ----------------------------------------------------------------
+   A fixed field of wave glyphs behind everything. Three rules keep it from
+   getting in the way: it is barely above the background colour, it is masked
+   to fade out where the content sits, and it takes no pointer events and no
+   layout space. It is decoration and is hidden from assistive tech.
+   A negative z-index child paints above the body background but below
+   in-flow content, which is exactly the layer wanted. */
+.ocean {
+  position: fixed; inset: 0; z-index: -1; margin: 0;
+  overflow: hidden; pointer-events: none; user-select: none;
+  color: #131b1e; font-size: 13px; line-height: 1.55;
+  white-space: pre;   /* real rows now, not a wrapped blob */
+  /* no mask. an earlier version faded the top 22% to transparent, but the
+     element is fixed, so that was a permanently blank band across the top of
+     the SCREEN at every scroll position - it read as the ocean being cut off.
+     The colour is already close enough to the background to stay out of the
+     way without help. */
+}
+
+/* ---- banner ---- */
+/* CSS rather than motion.dev for this one: a negative animation-delay starts
+   each fish part-way through its crossing, so the strip is populated the
+   instant the page loads instead of empty until the first fish drifts in.
+   Motion owns the hover interactions; this is ambient and belongs in CSS. */
+.sea {
+  position: relative; height: 17px; overflow: hidden;
+  font-size: 12px; line-height: 17px;
+}
+.fish {
+  position: absolute; top: 0; white-space: pre;
+  color: var(--fish); animation: swim-right linear infinite;
+}
+.fish.back { animation-name: swim-left; }
+
+@keyframes swim-right { from { left: -4ch; } to { left: 100%; } }
+@keyframes swim-left  { from { left: 100%; } to { left: -4ch; } }
+
+/* varied speeds so they never move in lockstep, and negative delays so they
+   start already spread across the strip */
+.f1 { animation-duration: 26s; animation-delay:  -4s; }
+.f2 { animation-duration: 34s; animation-delay: -18s; opacity: .75; }
+.f3 { animation-duration: 21s; animation-delay: -12s; }
+.f4 { animation-duration: 39s; animation-delay: -30s; opacity: .6; }
+.f5 { animation-duration: 30s; animation-delay: -22s; opacity: .8; }
+.f6 { animation-duration: 45s; animation-delay:  -9s; opacity: .55; }
+.f7 { animation-duration: 24s; animation-delay: -16s; opacity: .9; }
+.f8 { animation-duration: 37s; animation-delay: -33s; opacity: .65; }
+
+/* continuous motion is a genuine accessibility problem, not just a taste one */
+@media (prefers-reduced-motion: reduce) {
+  .fish { animation: none; }
+  .f1 { left: 3%; }  .f2 { left: 17%; } .f3 { left: 31%; } .f4 { left: 45%; }
+  .f5 { left: 57%; } .f6 { left: 69%; } .f7 { left: 82%; } .f8 { left: 92%; }
+}
+
+.waterline {
+  color: var(--dim); font-size: 12px; line-height: 1.3;
+  white-space: pre; margin: 0;
+  overflow: hidden;   /* overfilled with tildes and clipped, so the water spans
+                         the container at any width and the fish never swim
+                         past the end of it */
+}
+.title {
+  color: var(--bright); font-weight: 700; font-size: 20px;
+  letter-spacing: .18em; margin: 12px 0 6px;
+}
+.tagline { color: var(--mid); margin: 0 0 26px; }
+.tagline .swim { color: var(--fish); }
+
+/* ---- boxes ---- */
+.box { border: 1px solid var(--rule); background: var(--panel); margin-bottom: 18px; }
+.box > .bar {
+  border-bottom: 1px solid var(--rule);
+  padding: 7px 12px; color: var(--mid);
+  display: flex; align-items: center; gap: 10px;
+}
+.box > .bar .k { color: var(--spam); }
+.box > .bar .sp { flex: 1; }
+.box > .in { padding: 12px; }
+
+textarea {
+  width: 100%; min-height: 190px; resize: vertical; display: block;
+  background: var(--bg); color: var(--text);
+  border: 1px solid var(--rule); padding: 10px;
+  font: 400 12.5px/1.6 var(--mono);
+}
+textarea::placeholder { color: var(--dim); }
+textarea:focus { outline: none; border-color: var(--rule-2); }
+
+.controls { display: flex; align-items: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+button {
+  font: 500 12.5px/1 var(--mono); cursor: pointer;
+  background: transparent; color: var(--text);
+  border: 1px solid var(--rule-2); border-radius: 0;
+  padding: 8px 12px;
+}
+button:hover:not(:disabled) { border-color: var(--spam); color: var(--bright); }
+button:disabled { opacity: .45; cursor: default; }
+button.go { border-color: var(--mid); color: var(--bright); }
+.note { color: var(--dim); font-size: 12px; }
+.demo-note { margin: 14px 0 0; line-height: 1.55; }
+.demo-note code { color: var(--text); }
+.cases { display: flex; flex-direction: column; gap: 6px; }
+.case {
+  text-align: left; width: 100%; padding: 9px 11px;
+  display: flex; align-items: baseline; gap: 10px;
+}
+.case .cat { font-weight: 700; letter-spacing: .08em; flex: none; }
+.case.legitimate .cat { color: var(--legit); }
+.case.spam       .cat { color: var(--spam); }
+.case.phishing   .cat { color: var(--phish); }
+.case .sc { margin-left: auto; color: var(--mid); flex: none; }
+.case.on { border-color: var(--mid); color: var(--bright); }
+
+/* ---- verdict ---- */
+.stamp {
+  display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+  padding-bottom: 10px; border-bottom: 1px solid var(--rule);
+}
+.tag { font-weight: 700; letter-spacing: .12em; }
+.tag.legitimate { color: var(--legit); }
+.tag.spam       { color: var(--spam); }
+.tag.phishing   { color: var(--phish); }
+.tag.struck { text-decoration: line-through; opacity: .75; }
+.over { color: var(--phish); font-weight: 700; letter-spacing: .1em; }
+
+.gauge { margin-left: auto; white-space: pre; }
+.gauge .fill.legitimate { color: var(--legit); }
+.gauge .fill.spam       { color: var(--spam); }
+.gauge .fill.phishing   { color: var(--phish); }
+.gauge .rest { color: var(--rule-2); }
+.gauge .num { color: var(--bright); font-weight: 700; margin-left: 8px; }
+
+.raised { color: var(--spam); margin: 10px 0 0; }
+.verdict { color: var(--bright); margin: 12px 0 0; }
+
+h2 {
+  font-size: 12px; font-weight: 500; letter-spacing: .12em;
+  color: var(--spam); margin: 22px 0 8px; text-transform: uppercase;
+}
+h2 .q { color: var(--dim); letter-spacing: 0; text-transform: none; }
+
+/* ---- email + marks ---- */
+.email {
+  background: var(--bg); border: 1px solid var(--rule);
+  padding: 12px 12px 34px; margin: 0;
+  font: 400 12.5px/1.8 var(--mono); color: var(--text);
+  white-space: pre-wrap; overflow-wrap: anywhere;
+  /* never height-capped: the email IS the evidence, and an inner scrollbar
+     would hide the highlights it exists to show */
+}
+.hl {
+  background: transparent; color: inherit;
+  position: relative; cursor: help;
+  border-bottom: 1px solid var(--spam);
+}
+.hl-verified { border-bottom-color: var(--phish);
+               background: rgba(194, 99, 94, .14); }
+.hl-model    { background: rgba(95, 158, 201, .13); }
+.hl:hover    { background: rgba(95, 158, 201, .32); color: var(--bright); }
+
+.hl::after {
+  content: "[ " attr(data-desc) " ]";
+  display: none; position: absolute; top: calc(100% + 5px); left: 0;
+  background: var(--raised); border: 1px solid var(--rule-2);
+  padding: 5px 8px; font-size: 11.5px; line-height: 1.45; color: var(--text);
+  width: max-content; max-width: 300px; white-space: normal;
+  z-index: 5; pointer-events: none;
+}
+.hl:hover::after { display: block; }
+
+/* ---- indicator rows ---- */
+.rows { list-style: none; margin: 0; padding: 0; }
+.ind {
+  display: flex; gap: 8px; padding: 4px 0; cursor: default;
+  border-bottom: 1px dotted var(--rule);
+}
+.ind:last-child { border-bottom: 0; }
+.ind:hover { color: var(--bright); }
+.ind::before { content: "><>"; color: var(--spam); flex: none; }
+.ind-verified::before { color: var(--phish); }
+.ind .n { margin-left: auto; color: var(--dim); flex: none; }
+.empty { color: var(--dim); margin: 0; }
+.err { border: 1px solid var(--phish); color: var(--phish); padding: 9px 11px; }
+
+.foot { color: var(--rule-2); margin-top: 30px; white-space: pre; font-size: 12px;
+        overflow: hidden; }
+.foot b { color: var(--fish); font-weight: 400; opacity: .7; }
+</style>
+</head>
+<body>
+<pre class="ocean" aria-hidden="true"></pre>
+<div class="wrap">
+
+<div class="sea" aria-hidden="true">
+    <span class="fish f1">&gt;&lt;&gt;</span>
+    <span class="fish f2 back">&lt;&gt;&lt;</span>
+    <span class="fish f3">&gt;&lt;(((&gt;</span>
+    <span class="fish f4 back">&lt;&gt;&lt;</span>
+    <span class="fish f5">&gt;&lt;&gt;</span>
+    <span class="fish f6 back">&lt;)))&gt;&lt;</span>
+    <span class="fish f7">&gt;&lt;&gt;</span>
+    <span class="fish f8 back">&lt;&gt;&lt;</span>
+  </div>
+<pre class="waterline">~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~</pre>
+  <div class="title">vulnera-gill-ity</div>
+  <p class="tagline">phishing detection that shows its receipts <span class="swim">&gt;&lt;&gt;</span></p>
+
+  <div class="cols" id="cols">
+
+  <div class="box">
+    <div class="bar"><span class="k">$</span> recorded analyses <span class="sp"></span>
+      <span class="note">no api - nothing is sent anywhere</span></div>
+    <div class="in">
+      <div class="cases" id="cases"></div>
+      <p class="note demo-note">These are real outputs, captured from actual runs and saved.
+        The page is static: hovering, highlighting and the layer colours all work, but
+        nothing is being analysed live. Run it against your own email with
+        <code>python app.py</code>.</p>
+    </div>
+  </div>
+
+  <div id="out"></div>
+  </div>
+
+<pre class="foot">~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ gpt-4o-mini @ temp 0  ·  domain check runs locally, no api  <b>&gt;&lt;&gt;</b></pre>
+</div>
+
+<script src="static/vendor/motion.js"></script>
+<script>
+// ---- ocean -----------------------------------------------------------------
+// Built row by row. The first version generated one long string and let
+// pre-wrap break it, which packed every character solid and read as garbled
+// text rather than water. Rows with real newlines and a low glyph density look
+// like an ocean; a dense one looks like a corrupted file.
+//
+// Density increases with depth, so the surface is sparse and the bottom is
+// busier. The pattern is deterministic - a fixed seed, not Math.random - so
+// the water does not reshuffle when the window is resized.
+(() => {
+  const ocean = document.querySelector('.ocean');
+  if (!ocean) return;
+
+  const NL = String.fromCharCode(10);
+  const WAVES = ['~', '~', '~', '~', '≈', '-'];
+
+  function metrics() {
+    const probe = document.createElement('pre');
+    probe.style.cssText = 'position:absolute;visibility:hidden;white-space:pre;margin:0;font:'
+                        + getComputedStyle(ocean).font;
+    probe.textContent = 'X'.repeat(100);
+    document.body.append(probe);
+    // a single-line <pre> is exactly one line tall, so one probe gives both
+    const rect = probe.getBoundingClientRect();
+    probe.remove();
+    return { charW: (rect.width / 100) || 8, lineH: rect.height || 20 };
+  }
+
+  function fill() {
+    const { charW, lineH } = metrics();
+    const cols = Math.ceil(window.innerWidth / charW) + 2;
+    const rows = Math.ceil(window.innerHeight / lineH) + 2;
+
+    let seed = 20260819;
+    const rnd = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+
+    const lines = [];
+    for (let r = 0; r < rows; r++) {
+      // 4% at the surface up to ~14% at the bottom
+      const density = 0.04 + (r / rows) * 0.10;
+      let line = '';
+      for (let c = 0; c < cols; c++) {
+        line += rnd() < density ? WAVES[Math.floor(rnd() * WAVES.length)] : ' ';
+      }
+      lines.push(line);
+    }
+    ocean.textContent = lines.join(NL);
+  }
+
+  fill();
+  let t;
+  addEventListener('resize', () => { clearTimeout(t); t = setTimeout(fill, 150); });
+})();
+
+const $ = s => document.querySelector(s);
+const el = (t, c, txt) => { const n = document.createElement(t); if (c) n.className = c;
+                            if (txt != null) n.textContent = txt; return n; };
+const esc = s => s.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const escAttr = s => esc(s).replace(/"/g, '&quot;');
+
+// coloured by DANGER, not by category - 'spam' at 0.05 and 'phishing' at 0.95
+// must not read as the same severity
+const tone = s => s >= 0.5 ? 'phishing' : s >= 0.2 ? 'spam' : 'legitimate';
+
+// an ascii meter rather than a styled div: same information, and it survives
+// being copied out of the page as plain text
+function gauge(score) {
+  const cells = 24, on = Math.max(1, Math.round(score * cells));
+  const g = el('div', 'gauge');
+  g.append(document.createTextNode('['));
+  g.append(el('span', 'fill ' + tone(score), '#'.repeat(on)));
+  g.append(el('span', 'rest', '.'.repeat(cells - on)));
+  g.append(document.createTextNode(']'));
+  g.append(el('span', 'num', score.toFixed(2)));
+  return g;
+}
+
+// weave <mark> spans into the email by walking located spans in order, escaping
+// everything between them - this input is hostile by definition, so no raw
+// email text is ever inserted as markup
+function highlightedEmail(text, highlights) {
+  const spans = highlights.map((h, i) => ({ ...h, i }))
+    .filter(h => h.start !== null).sort((a, b) => a.start - b.start);
+  let html = '', at = 0;
+  for (const s of spans) {
+    html += esc(text.slice(at, s.start));
+    html += '<mark class="hl hl-' + s.source + '" data-g="' + s.group
+          + '" data-desc="' + escAttr(s.description) + '">'
+          + esc(text.slice(s.start, s.end)) + '</mark>';
+    at = s.end;
+  }
+  return html + esc(text.slice(at));
+}
+
+// ---- motion ----------------------------------------------------------------
+// hover() from motion.dev rather than mouseenter: it is pointer-aware, so a
+// touch tap will not leave a highlight stuck on, and it returns a cleanup
+// function so entry and exit are defined together instead of as two detached
+// handlers. Marks stay display:inline so a highlight can span a wrapped line,
+// which rules out transforms - they have no effect on a non-replaced inline
+// box - so the animation is on colour. If the bundle fails to load, the CSS
+// :hover rules still cover the essentials.
+const HOVER_BG = 'rgba(95, 158, 201, 0.32)';
+
+function attachMotion(root) {
+  const M = window.Motion || {};
+  if (typeof M.hover !== 'function' || typeof M.animate !== 'function') return;
+  const { hover, animate } = M;
+
+  const marks = [...root.querySelectorAll('.hl')];
+  // capture each mark's resting tint before anything animates it - the two
+  // sources rest at different colours and must settle back to their own
+  const base = new WeakMap();
+  marks.forEach(m => base.set(m, getComputedStyle(m).backgroundColor));
+
+  const lightUp = els => els.forEach(m =>
+    animate(m, { backgroundColor: HOVER_BG }, { duration: .16, ease: 'easeOut' }));
+  const settle = els => els.forEach(m =>
+    animate(m, { backgroundColor: base.get(m) }, { duration: .28, ease: 'easeOut' }));
+
+  marks.forEach(m => hover(m, () => { lightUp([m]); return () => settle([m]); }));
+
+  root.querySelectorAll('.ind').forEach(li => {
+    const linked = marks.filter(m => m.dataset.g === li.dataset.g);
+    if (!linked.length) return;
+    hover(li, () => { lightUp(linked); return () => settle(linked); });
+  });
+}
+
+function render(d) {
+  const out = $('#out'); out.replaceChildren();
+  const box = el('div', 'box');
+  const bar = el('div', 'bar');
+  bar.append(el('span', 'k', '>'), document.createTextNode('verdict'));
+  box.append(bar);
+  const body = el('div', 'in');
+
+  const stamp = el('div', 'stamp');
+  stamp.append(el('span', 'tag ' + d.category + (d.escalated ? ' struck' : ''),
+                  '[ ' + d.category.toUpperCase() + ' ]'));
+  if (d.escalated) stamp.append(el('span', 'over', 'OVERRIDDEN'));
+  stamp.append(gauge(d.risk_score));
+  body.append(stamp);
+
+  // an overridden score must say so - a reader seeing 0.70 on an email the
+  // model called harmless deserves to know a deterministic check raised it
+  if (d.escalated) {
+    body.append(el('p', 'raised',
+      '^ raised from ' + d.model_score.toFixed(2) +
+      ' by the domain check; the model did not flag this email'));
+  }
+  body.append(el('p', 'verdict', d.verdict));
+
+  if (d.highlights.length) {
+    const h = el('h2', null, 'evidence');
+    h.append(el('span', 'q', '  hover a highlight'));
+    body.append(h);
+    const pre = el('pre', 'email');
+    pre.innerHTML = highlightedEmail(d.email, d.highlights);
+    body.append(pre);
+  }
+
+  body.append(el('h2', null, d.highlights.length ? 'indicators' : 'indicators / none'));
+  if (d.highlights.length) {
+    const ul = el('ul', 'rows');
+    // one row per FINDING - a single finding can point at several strings
+    const seen = new Map();
+    d.highlights.forEach(h => { if (!seen.has(h.group)) seen.set(h.group, h); });
+    for (const [group, h] of seen) {
+      const li = el('li', 'ind ind-' + h.source);
+      li.append(el('span', 'ind-text', h.description));
+      const all = d.highlights.filter(x => x.group === group);
+      // only say a quote is missing when it genuinely is - an overlapped one is
+      // already highlighted, just attributed to the layer that proved it
+      if (all.every(x => x.reason === 'not_found')) li.append(el('span', 'n', 'no quote'));
+      li.dataset.g = group;
+      ul.append(li);
+    }
+    body.append(ul);
+  } else {
+    body.append(el('p', 'empty', 'no phishing indicators reported'));
+  }
+
+  box.append(body);
+  out.append(box);
+  $('#cols').classList.add('split');
+  attachMotion(box);
+}
+
+function showError(msg) {
+  const out = $('#out'); out.replaceChildren();
+  const box = el('div', 'box'), body = el('div', 'in');
+  body.append(el('div', 'err', '! ' + msg));
+  box.append(body); out.append(box);
+  $('#cols').classList.add('split');
+}
+
+
+const DEMO = [{"label": "credential phishing", "email": "From: PAYPAL Security <service@paypa1-secure.com>\nTo: customer@example.com\nSubject: URGENT: Your account has been limited\n\nDear Valued Customer,\n\nWe have detected unusual activity on your account. Your account access has\nbeen LIMITED until you verify your information.\n\nYou must confirm your identity within 24 hours or your account will be\npermanently suspended and your funds forfeited.\n\nClick here to restore access: http://paypa1-secure.com/verify/login.php\n\nPlease have your password and the card number on file ready.\n\nSincerely,\nPAYPAL Security Team\n", "category": "phishing", "risk_score": 0.95, "model_score": 0.95, "escalated": false, "verdict": "Almost certainly a phishing attempt impersonating PayPal, given the mismatched domain and urgent account verification request.", "highlights": [{"description": "sender domain 'paypa1-secure.com' imitates 'PAYPAL' using character substitution", "quote": "paypa1-secure.com", "source": "verified", "group": 0, "start": 31, "end": 48, "reason": null}, {"description": "sender domain 'paypa1-secure.com' imitates 'PAYPAL' using character substitution", "quote": "PAYPAL", "source": "verified", "group": 0, "start": 6, "end": 12, "reason": null}, {"description": "sender domain mismatches claimed brand", "quote": "service@paypa1-secure.com", "source": "model", "group": 1, "start": null, "end": null, "reason": "overlap"}, {"description": "uses urgency to pressure the reader", "quote": "You must confirm your identity within 24 hours or your account will be permanently suspended", "source": "model", "group": 2, "start": 270, "end": 362, "reason": null}, {"description": "links point somewhere other than where they claim", "quote": "http://paypa1-secure.com/verify/login.php", "source": "model", "group": 3, "start": 420, "end": 461, "reason": null}, {"description": "asks for credentials or personal data", "quote": "Please have your password and the card number on file ready.", "source": "model", "group": 4, "start": 463, "end": 523, "reason": null}]}, {"label": "lookalike domain, model missed it", "email": "From: WeTransfer <noreply@we-transfer.com>\nTo: jose@example.com\nSubject: you just received files via WeTransfer\n\nYou have received 3 files, 14 MB in total. They will be deleted on 05 Oct.\n\nDownload your Docs here.\n\nTo make sure our emails arrive, please add noreply@wetransfer.com to your\ncontacts.\n", "category": "legitimate", "risk_score": 0.7, "model_score": 0.05, "escalated": true, "verdict": "This email appears to be a legitimate notification from WeTransfer regarding file transfer, with no indicators of phishing.", "highlights": [{"description": "body cites 'wetransfer.com' but the email was sent from 'we-transfer.com'", "quote": "wetransfer.com", "source": "verified", "group": 0, "start": 266, "end": 280, "reason": null}, {"description": "body cites 'wetransfer.com' but the email was sent from 'we-transfer.com'", "quote": "we-transfer.com", "source": "verified", "group": 0, "start": 26, "end": 41, "reason": null}]}, {"label": "ordinary business mail", "email": "From: Mary Chen <mary.chen@example.com>\nTo: daren@example.com\nSubject: Re: deal tickets for April\n\nHi Daren,\n\nI copied the old ticket and reput the volumes on a new deal ticket dating back\nto the first, which reflects the correct desk entity. Please check your tickets\nas the April volumes will need repathing.\n\nThanks,\nMary\n", "category": "legitimate", "risk_score": 0.0, "model_score": 0.0, "escalated": false, "verdict": "This email appears to be a legitimate internal communication regarding deal tickets, with no indicators of phishing.", "highlights": []}, {"label": "advertising: spam, not phishing", "email": "From: \"FreeLegal Advice\" <jaen@s3.serveimage.com>\nSubject: [ILUG] Get the Child Support You Deserve                     10.132\n\n1) Fight The Risk of Cancer!\nhttp://www.adclick.ws/p.cfm?o=315&s=pk007\n\n2) Slim Down - Guaranteed to lose 10-12 lbs in 30 days\nhttp://www.adclick.ws/p.cfm?o=249&s=pk007\n\n3) Get the Child Support You Deserve - Free Legal Advice\nhttp://www.adclick.ws/p.cfm?o=245&s=pk002\n\n4) Join the Web's Fastest Growing Singles Community\nhttp://www.adclick.ws/p.cfm?o=259&s=pk007\n\n5) Start Your Private Photo Album Online!\nhttp://www.adclick.ws/p.cfm?o=283&s=pk007\n\nHave a Wonderful Day,\nOffer Manager\nPrizeMama\n\n\n\n\n\n\n\n\n\n\n\n\n\nIf you wish to leave this list please use the link below.\nhttp://www.qves.com/trim/?ilug@linux.ie%7C17%7C114258\n\n-- \nIrish Linux Users' Group: ilug@linux.ie\nhttp://www.linux.ie/mailman/listinfo/ilug for (un)subscription information.\nList maintainer: listmaster@linux.ie", "category": "spam", "risk_score": 0.1, "model_score": 0.1, "escalated": false, "verdict": "This email is likely spam due to unsolicited advertisements and mismatched sender domain.", "highlights": [{"description": "sender domain mismatches claimed brand", "quote": "jaen@s3.serveimage.com", "source": "model", "group": 0, "start": 26, "end": 48, "reason": null}, {"description": "generic greeting rather than addressed to a named person", "quote": "Have a Wonderful Day,", "source": "model", "group": 1, "start": 578, "end": 599, "reason": null}, {"description": "links point to adclick.ws instead of legitimate site", "quote": "http://www.adclick.ws/p.cfm?o=315&s=pk007", "source": "model", "group": 2, "start": 157, "end": 198, "reason": null}]}];
+
+// the picker stands in for the API: same payload shape, same render path
+const list = $('#cases');
+DEMO.forEach((d, i) => {
+  const b = document.createElement('button');
+  b.className = 'case ' + d.category;
+  b.innerHTML = '<span class="cat">[ ' + d.category.toUpperCase() + ' ]</span>'
+              + '<span>' + d.label + '</span>'
+              + '<span class="sc">' + d.risk_score.toFixed(2)
+              + (d.escalated ? ' \u2191' : '') + '</span>';
+  b.onclick = () => {
+    [...list.children].forEach(c => c.classList.remove('on'));
+    b.classList.add('on');
+    render(d);
+    $('#cols').classList.add('split');
+  };
+  list.append(b);
+  if (i === 0) b.click();
+});
+</script>
+</body>
+</html>
