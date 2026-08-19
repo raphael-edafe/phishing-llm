@@ -189,6 +189,22 @@ textarea:focus { outline: none; border-color: var(--color-smoke); }
   transition: width .4s cubic-bezier(.4,0,.2,1);
 }
 
+/* when the deterministic layer overrides, the badge must not read as an
+   all-clear. it keeps the model's word but takes the escalated tone and is
+   struck through, so 'legitimate' and a 0.70 score cannot be mistaken for
+   agreement. */
+.badge.overridden { color: var(--tone-phishing); text-decoration: line-through;
+                    text-decoration-thickness: 1px; opacity: .85; }
+.badge-note {
+  font-size: 11px; font-weight: 500; letter-spacing: .04em; text-transform: uppercase;
+  color: var(--tone-phishing); margin-left: var(--spacing-8);
+}
+
+.escalated {
+  font-size: 13px; line-height: 1.45; color: var(--color-copper);
+  margin: var(--spacing-12) 0 0;
+}
+
 .verdict {
   font-size: var(--text-body-sm); line-height: 1.38; letter-spacing: -0.36px;
   color: var(--color-bone); margin: var(--spacing-24) 0 0;
@@ -305,7 +321,10 @@ function render(d) {
   const card = el('div', 'card');
 
   const head = el('div', 'result-head');
-  head.append(el('span', 'badge ' + d.category, d.category));
+  const badge = el('span', 'badge ' + d.category + (d.escalated ? ' overridden' : ''),
+                   d.category);
+  head.append(badge);
+  if (d.escalated) head.append(el('span', 'badge-note', 'overridden'));
 
   const wrap = el('div', 'score-wrap');
   const score = el('div', 'score', d.risk_score.toFixed(2));
@@ -318,6 +337,14 @@ function render(d) {
   fill.style.width = Math.max(1.5, d.risk_score * 100) + '%';
   fill.style.background = `var(--tone-${tone(d.risk_score)})`;
   meter.append(fill); card.append(meter);
+
+  // an overridden score must say so - a user seeing 0.70 on an email the model
+  // called harmless deserves to know a deterministic check raised it
+  if (d.escalated) {
+    card.append(el('p', 'escalated',
+      'Raised from ' + d.model_score.toFixed(2) +
+      ' by the domain check. The model did not flag this email.'));
+  }
 
   card.append(el('p', 'verdict', d.verdict));
 

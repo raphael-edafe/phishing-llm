@@ -32,6 +32,10 @@ RANDOM_SEED = 42
 MIN_CHARS = 20
 MAX_CHARS = 8000
 
+# corpora live here as .zip, read without extracting (gitignored - the
+# phishing sets contain live malicious URLs)
+SOURCES_DIR = Path("sources")
+
 # scored output lands here, one file per dataset+tag
 RESULTS_DIR = Path("results")
 
@@ -83,7 +87,7 @@ def load_dataset(name: str) -> pd.DataFrame:
     cfg = DATASETS[name]
 
     if "zip" in cfg:
-        path = Path(cfg["zip"])
+        path = SOURCES_DIR / cfg["zip"]
         if not path.exists():
             raise SystemExit(f"{path} not found in {Path.cwd()}")
         with zipfile.ZipFile(path) as z:

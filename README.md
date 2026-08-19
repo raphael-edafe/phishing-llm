@@ -21,11 +21,11 @@ you'd have to parse yourself.
 
 ## Results
 
-| Metric | Result | Source |
-|---|---|---|
-| **Phishing recall** | **99%** (99/100) | Nazario corpus, all phishing |
-| **False positive rate** | **0%** (0/50) | SpamAssassin ham |
-| Advertising correctly not flagged | 47/50 | SpamAssassin spam |
+| Metric | Model only | With domain check | Source |
+|---|---|---|---|
+| **Phishing recall** | 99% (99/100) | **100%** (100/100) | Nazario corpus, all phishing |
+| **False positive rate** | 0% (0/50) | **0%** (0/50) | SpamAssassin ham |
+| Advertising correctly not flagged | 47/50 | 47/50 | SpamAssassin spam |
 
 Two corpora, because they answer different questions. Nazario is entirely phishing, so it
 measures recall — how much gets through. SpamAssassin supplies legitimate mail, so it measures
@@ -128,11 +128,13 @@ was only visible because the same input was run repeatedly; a single run looked 
 
 ## Known limitations
 
-**Subtle typosquatting without supporting signals** — partially mitigated, see below. The one
-phishing email that got through was a WeTransfer notification from `we-transfer.com`; the real
-domain is `wetransfer.com`, a difference of one hyphen. No urgency, no threat, no credential
-request. Every email the detector caught had several signals stacked; this one had exactly
-one, and a quiet one.
+**Subtle typosquatting without supporting signals** — now caught by the deterministic layer,
+but only just. The one phishing email the model missed was a WeTransfer notification from
+`we-transfer.com`; the real domain is `wetransfer.com`, a difference of one hyphen. No urgency,
+no threat, no credential request. Every email the model caught had several signals stacked;
+this one had exactly one, and a quiet one. `domain_check` escalates it, taking recall to
+100/100 — but it fired on **exactly one email in the 100-row sample**, so that is a specific
+failure mode closed, not a general improvement in detection.
 
 **Spam vs legitimate is not determinable from content.** Whether a newsletter is subscribed or
 unsolicited is a fact about the recipient's prior consent, and it does not appear anywhere in
@@ -257,10 +259,22 @@ re-examined without re-running the API.
 Use it on your own text:
 
 ```python
-from detect_phishing import analyze
+from detect_phishing import scan
 
-result = analyze(email_text)
-print(result.category, result.risk_score, result.flags)
+r = scan(email_text)
+print(r.analysis.category, r.risk_score, r.escalated)
+```
+
+`scan()` runs both layers and is what callers should use. `analyze()` remains the single-layer
+primitive so the model can still be tested in isolation. `analysis.risk_score` is never
+overwritten — `ScanResult.risk_score` carries the acted-on value and `escalated` says whether
+the deterministic layer overrode the model, which is what lets the override be measured rather
+than merely trusted.
+
+Re-measure the escalation policy at any time, for free, with no API calls:
+
+```bash
+python measure_escalation.py
 ```
 
 ## Note on what this is

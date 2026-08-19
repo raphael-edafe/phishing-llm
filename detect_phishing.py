@@ -1,9 +1,13 @@
 import os
+import re
+from dataclasses import dataclass
 from typing import Literal
 
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field 
 from openai import OpenAI, OpenAIError
+
+from domain_check import check as domain_check
 
 
 # reads the .env file and loads its variables into this process's environment
@@ -182,14 +186,85 @@ def analyze(email_text: str) -> PhishingAnalysis:
     return result
 
 
+# --- composing the two layers -------------------------------------------------
+
+# a domain finding overrides the model only when the model was NOT already
+# concerned. above this, the two agree closely enough that overriding adds
+# nothing.
+ESCALATE_BELOW = 0.50
+
+# what an override escalates TO. domain_check fired on 0 of 4,091 legitimate
+# emails, so a firing is strong evidence - but "strong evidence" is not
+# "certainty", which is why this is 0.70 and not 1.00.
+ESCALATED_FLOOR = 0.70
+
+FROM_RE = re.compile(r"^From:\s*(.+)$", re.I | re.M)
+
+
+def split_headers(raw: str) -> tuple[str, str]:
+    """Return (From: value, body). Both may be empty - pasted input is freeform."""
+    m = FROM_RE.search(raw)
+    from_header = m.group(1).strip() if m else ""
+    # the body is everything after the first blank line, or the whole text if
+    # the message arrived with no headers at all
+    parts = raw.split("\n\n", 1)
+    body = parts[1] if len(parts) > 1 else raw
+    return from_header, body
+
+
+@dataclass
+class ScanResult:
+    """Both layers, kept distinct.
+
+    analysis        - what the model judged, unmodified
+    domain_findings - what the code proved from the text itself
+    risk_score      - the score a caller should act on, possibly escalated
+    escalated       - whether the deterministic layer overrode the model
+    """
+    analysis: PhishingAnalysis
+    domain_findings: list[str]
+    risk_score: float
+    escalated: bool
+
+
+def scan(email_text: str) -> ScanResult:
+    """Run both layers over one email.
+
+    This is what callers should use. analyze() stays the single-layer primitive
+    so the variance harness can still test the model in isolation.
+
+    analysis.risk_score is never overwritten - doing so would destroy the record
+    of what the model actually said, and make it impossible to measure how often
+    escalation fires or whether it helps.
+    """
+    from_header, body = split_headers(email_text)
+
+    # deterministic layer first: free, instant, and it has already run if the
+    # API call below fails
+    findings = domain_check(from_header, body) if from_header else []
+
+    analysis = analyze(email_text)
+
+    score, escalated = analysis.risk_score, False
+    if findings and score < ESCALATE_BELOW:
+        score, escalated = ESCALATED_FLOOR, True
+
+    return ScanResult(analysis, findings, score, escalated)
+
+
 # only runs when this file is executed directly (python detect_phishing.py).
 # on `import detect_phishing` __name__ is the module name instead, so importing
 # analyze() into the batch script will not fire a test API call as a side effect.
 if __name__ == "__main__":
     # the caller decides what a failure means - here, print one line and stop
     try:
-        analysis = analyze(TEST_EMAIL)
+        result = scan(TEST_EMAIL)
     except OpenAIError as exc:
         raise SystemExit(f"API call failed: {type(exc).__name__}: {exc}")
 
-    print(analysis.model_dump_json(indent=2))
+    print(result.analysis.model_dump_json(indent=2))
+    for finding in result.domain_findings:
+        print(f"domain check: {finding}")
+    if result.escalated:
+        print(f"risk escalated {result.analysis.risk_score:.2f} -> "
+              f"{result.risk_score:.2f} by the domain check")

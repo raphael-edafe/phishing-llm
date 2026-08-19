@@ -2,42 +2,26 @@
 
     python app.py     ->  http://localhost:5057
 
-A thin Flask wrapper around analyze(). The detection logic stays in
-detect_phishing.py so there is exactly one copy of the prompt and schema - the
-UI never reimplements them.
+A thin Flask wrapper around scan(). The detection logic stays in
+detect_phishing.py so there is exactly one copy of the prompt, the schema, and
+the two-layer composition - the UI never reimplements any of them.
 
-Two layers run per request, and the UI shows them separately:
+scan() runs both layers per request:
 
-  1. domain_check.check()  - deterministic, free, instant, no API call
-  2. analyze()             - the model, ~7 seconds, costs a fraction of a cent
+  1. domain_check  - deterministic, free, instant, no API call
+  2. analyze()     - the model, ~7 seconds, a fraction of a cent
 
-Keeping them visually distinct in the output is deliberate: one is a fact
-about the email's text, the other is a judgement. They should not be presented
-as if they carry the same kind of certainty.
+They are reported separately because one is a verifiable fact about the text
+and the other is a judgement. Presenting them identically would overstate the
+second.
 """
-
-import re
 
 from flask import Flask, jsonify, request, send_from_directory
 from openai import OpenAIError
 
-from detect_phishing import analyze
-from domain_check import check as domain_check
+from detect_phishing import scan
 
 app = Flask(__name__, static_folder="static")
-
-FROM_RE = re.compile(r"^From:\s*(.+)$", re.I | re.M)
-
-
-def split_headers(raw: str) -> tuple[str, str]:
-    """Return (From: value, body). Both may be empty - paste is freeform."""
-    m = FROM_RE.search(raw)
-    from_header = m.group(1).strip() if m else ""
-    # the body is everything after the first blank line, or the whole text if
-    # the user pasted a bare message with no headers at all
-    parts = raw.split("\n\n", 1)
-    body = parts[1] if len(parts) > 1 else raw
-    return from_header, body
 
 
 @app.get("/")
@@ -53,29 +37,23 @@ def api_analyze():
     if len(email) > 20000:
         return jsonify(error="That's over 20,000 characters - trim it down."), 400
 
-    from_header, body = split_headers(email)
-
-    # deterministic layer: runs whether or not the API call succeeds
-    domain_findings = domain_check(from_header, body) if from_header else []
-
     try:
-        result = analyze(email)
+        result = scan(email)
     except OpenAIError as exc:
         # surface the real reason - a missing key and no credit are different
-        # problems and the user can only fix them if we say which it is
-        return jsonify(
-            error=f"{type(exc).__name__}: {exc}",
-            domain_findings=domain_findings,
-        ), 502
+        # problems, and the user can only fix them if we say which it is
+        return jsonify(error=f"{type(exc).__name__}: {exc}"), 502
     except RuntimeError as exc:
-        return jsonify(error=str(exc), domain_findings=domain_findings), 502
+        return jsonify(error=str(exc)), 502
 
     return jsonify(
-        category=result.category,
+        category=result.analysis.category,
         risk_score=result.risk_score,
-        flags=result.flags,
-        verdict=result.verdict,
-        domain_findings=domain_findings,
+        model_score=result.analysis.risk_score,
+        escalated=result.escalated,
+        flags=result.analysis.flags,
+        verdict=result.analysis.verdict,
+        domain_findings=result.domain_findings,
     )
 
 
