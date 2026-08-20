@@ -303,9 +303,13 @@ h2 .q { color: var(--dim); letter-spacing: 0; text-transform: none; }
   const WAVES = ['~', '~', '~', '~', '≈', '-'];
 
   function metrics() {
+    // font-family and font-size explicitly, NOT the `font` shorthand:
+    // getComputedStyle(el).font returns an empty string in Chrome, so the
+    // probe silently fell back to a proportional face and measured too wide.
+    const cs = getComputedStyle(ocean);
     const probe = document.createElement('pre');
-    probe.style.cssText = 'position:absolute;visibility:hidden;white-space:pre;margin:0;font:'
-                        + getComputedStyle(ocean).font;
+    probe.style.cssText = 'position:absolute;visibility:hidden;white-space:pre;margin:0;'
+                        + 'font-family:' + cs.fontFamily + ';font-size:' + cs.fontSize;
     probe.textContent = 'X'.repeat(100);
     document.body.append(probe);
     // a single-line <pre> is exactly one line tall, so one probe gives both
@@ -336,6 +340,10 @@ h2 .q { color: var(--dim); letter-spacing: 0; text-transform: none; }
   }
 
   fill();
+  // and again once the webfont lands: measuring before JetBrains Mono loads
+  // uses the fallback's metrics, so the field can come out short of the
+  // viewport. fill() only ever grows, so a second call is safe.
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fill);
   let t;
   addEventListener('resize', () => { clearTimeout(t); t = setTimeout(fill, 150); });
 })();
