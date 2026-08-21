@@ -83,7 +83,7 @@ const DEMO = __CASES__;
 
 // the picker stands in for the API: same payload shape, same render path
 const list = $('#cases');
-DEMO.forEach((d, i) => {
+DEMO.forEach((d) => {
   const b = document.createElement('button');
   b.className = 'case ' + d.category;
   b.innerHTML = '<span class="cat">[ ' + d.category.toUpperCase() + ' ]</span>'
@@ -97,8 +97,12 @@ DEMO.forEach((d, i) => {
     $('#cols').classList.add('split');
   };
   list.append(b);
-  if (i === 0) b.click();
 });
+
+// selected AFTER the list is built, not from inside the loop - clicking a
+// button while its siblings are still being appended made which one ended up
+// selected non-deterministic
+list.firstElementChild.click();
 </script>"""
     # the LAST </script>, not the first - the first belongs to the motion.js
     # <script src=...> tag, and inline content there is silently ignored by the

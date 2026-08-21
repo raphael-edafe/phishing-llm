@@ -507,7 +507,7 @@ const DEMO = [{"label": "credential phishing", "email": "From: PAYPAL Security <
 
 // the picker stands in for the API: same payload shape, same render path
 const list = $('#cases');
-DEMO.forEach((d, i) => {
+DEMO.forEach((d) => {
   const b = document.createElement('button');
   b.className = 'case ' + d.category;
   b.innerHTML = '<span class="cat">[ ' + d.category.toUpperCase() + ' ]</span>'
@@ -521,8 +521,12 @@ DEMO.forEach((d, i) => {
     $('#cols').classList.add('split');
   };
   list.append(b);
-  if (i === 0) b.click();
 });
+
+// selected AFTER the list is built, not from inside the loop - clicking a
+// button while its siblings are still being appended made which one ended up
+// selected non-deterministic
+list.firstElementChild.click();
 </script>
 </body>
 </html>
